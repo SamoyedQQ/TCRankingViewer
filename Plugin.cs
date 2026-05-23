@@ -74,8 +74,10 @@ public sealed class Plugin : IDalamudPlugin
         _ = RankingService.RefreshAsync()
             .ContinueWith(_ => Framework.RunOnTick(() => PartyWatcher.RebuildResults()));
 
-        // server 同步：等待排名資料先下載完成後再執行，避免競爭
-        _ = Task.Run(SyncOnStartupAsync);
+        // server 同步：僅在使用者明確開啟「載入插件時自動同步社群」時才啟動同步
+        // 首次安裝預設為 false，避免在使用者尚未閱讀同步須知前就上傳資料
+        if (Configuration.AutoSyncOnStartup)
+            _ = Task.Run(SyncOnStartupAsync);
 
         Log.Information("[TCRanking] 插件已載入。指令：/tcrank");
     }

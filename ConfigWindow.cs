@@ -99,8 +99,14 @@ public class ConfigWindow : Window, IDisposable
         ImGui.TextColored(new Vector4(0.7f, 1f, 0.7f, 1), "社群資料同步");
         ImGui.Spacing();
         ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.85f, 0.4f, 1));
-        ImGui.TextWrapped("使用須知：啟用同步時，您的 CID 快取（角色 ID→名稱對應）或黑名單將上傳至共享伺服器供其他插件使用者下載。這些資料屬遊戲內公開可見資訊，但請確認知悉後再開啟。同步僅在插件啟動時執行一次。");
+        ImGui.TextWrapped("使用須知：啟用同步時，您的 CID 快取（角色 ID→名稱對應）或黑名單將上傳至共享伺服器供其他插件使用者下載。這些資料屬遊戲內公開可見資訊，但請確認知悉後再開啟。");
         ImGui.PopStyleColor();
+        ImGui.Spacing();
+
+        var autoSync = cfg.AutoSyncOnStartup;
+        if (ImGui.Checkbox("載入插件時自動同步社群（未勾選則僅在按下「立即同步」時觸發）", ref autoSync))
+        { cfg.AutoSyncOnStartup = autoSync; cfg.Save(); }
+
         ImGui.Spacing();
 
         var uploadCid = cfg.UploadCidCache;

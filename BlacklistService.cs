@@ -246,7 +246,11 @@ public sealed class BlacklistService : IDisposable
         foreach (var (n, w, c) in metaPending)
             if (RecordMeta(n, w, c)) metaChanged = true;
 
-        if (metaChanged && Plugin.Configuration.UploadBlacklist)
+        // 僅在使用者已開啟「載入插件時自動同步」時，才主動補一次 sync；
+        // 否則尊重使用者的手動同步偏好，meta 會等下次手動同步才被推上去
+        if (metaChanged
+            && Plugin.Configuration.AutoSyncOnStartup
+            && Plugin.Configuration.UploadBlacklist)
         {
             Plugin.Log.Info("[Blacklist] meta 有新增，補觸發一次同步上傳 world/cid");
             _ = Plugin.TriggerSyncAsync();

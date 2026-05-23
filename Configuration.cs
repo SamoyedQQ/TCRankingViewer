@@ -18,6 +18,8 @@ public class Configuration : IPluginConfiguration
     public bool NotifyUnranked      { get; set; } = false;
 
     // ── 社群資料同步（需同意使用須知）──────────────────────────────────────────
+    // 預設為 false：首次載入插件不自動觸發任何上傳/下載，給使用者選擇是否參與的權利
+    public bool AutoSyncOnStartup { get; set; } = false;
     // CID 快取：ContentId→玩家名稱，屬遊戲內公開資料
     public bool UploadCidCache  { get; set; } = true;  // 上傳本機 CID 快取至 server
     public bool SyncCidCache    { get; set; } = true;  // 從 server 下載其他用戶貢獻的 CID 快取
