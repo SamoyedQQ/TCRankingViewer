@@ -206,6 +206,9 @@ public sealed class BlacklistService : IDisposable
             if (entry.Id != 0) nameToCid[n] = entry.Id;
         }
 
+        // 先 MergeFromGame 寫檔 + 重 Load _localEntries，再做 meta 記錄
+        // 確保新匯入的名字也在 _localEntries 內，後續 GetAllLocalEntries 上傳時才會帶 meta
+        var metaPending = new List<(string name, string? world, ulong cid)>();
         var strArr = BlackListStringArray.Instance();
         if (strArr != null)
         {
@@ -220,9 +223,7 @@ public sealed class BlacklistService : IDisposable
                 var world = worlds[i].ToString() ?? "";
                 var note  = notes[i].ToString()  ?? "";
                 entries.Add((name, note));
-                // 順手把 world / cid 寫入 meta 側錄，供下次上傳時帶上 server
-                var cid = nameToCid.GetValueOrDefault(name, 0UL);
-                RecordMeta(name, world, cid);
+                metaPending.Add((name, world, nameToCid.GetValueOrDefault(name, 0UL)));
             }
         }
         else
@@ -233,11 +234,23 @@ public sealed class BlacklistService : IDisposable
                 var name = entry.Name.ToString();
                 if (string.IsNullOrWhiteSpace(name)) continue;
                 entries.Add((name, ""));
-                RecordMeta(name, null, entry.Id);
+                metaPending.Add((name, null, entry.Id));
             }
         }
         Plugin.Log.Info($"[Blacklist] 讀取遊戲黑名單 {entries.Count} 筆 (EntryCount={proxy->EntryCount}, cidKnown={nameToCid.Count})");
         MergeFromGame(entries);
+
+        // 收集 meta 變更；若有實際變更，trigger 一次 sync 把新 world/cid 推到 server
+        // （啟動同步常常跑在遊戲黑名單讀取之前，造成那一輪 upload 帶不到 world，此處補一次）
+        var metaChanged = false;
+        foreach (var (n, w, c) in metaPending)
+            if (RecordMeta(n, w, c)) metaChanged = true;
+
+        if (metaChanged && Plugin.Configuration.UploadBlacklist)
+        {
+            Plugin.Log.Info("[Blacklist] meta 有新增，補觸發一次同步上傳 world/cid");
+            _ = Plugin.TriggerSyncAsync();
+        }
     }
 
     private static unsafe InfoProxyBlacklist* GetProxy()
@@ -392,16 +405,17 @@ public sealed class BlacklistService : IDisposable
     // ── Meta 中繼資料：World / ContentId 觀察與持久化 ────────────────────────
 
     // 任何時機（遊戲黑名單匯入、Party 觀察、PF 觀察）發現某玩家的 world / cid 都呼叫此 API
-    // 只在玩家確實在本機黑名單上時才寫入，避免 meta 無限膨脹
     // 已存在的非空欄位不會被覆蓋（先到先贏，避免 stale 資料）
-    public void RecordMeta(string name, string? world, ulong contentId)
+    // 不過濾 _localEntries：避免 race(RecordMeta 在 MergeFromGame 之前跑，新名字會被略過)；
+    // 上傳本來就只挑 _localEntries 的，留 meta 在外面不會被多餘上傳，但會被未來新增條目取用
+    // 回傳是否實際變更（呼叫端可據此決定要不要 trigger sync）
+    public bool RecordMeta(string name, string? world, ulong contentId)
     {
-        if (string.IsNullOrWhiteSpace(name)) return;
-        if (!_localEntries.ContainsKey(name)) return;
+        if (string.IsNullOrWhiteSpace(name)) return false;
 
         var w = string.IsNullOrWhiteSpace(world) ? null : world!.Trim();
         var c = contentId == 0 ? null : contentId.ToString();
-        if (w == null && c == null) return;
+        if (w == null && c == null) return false;
 
         lock (_metaLock)
         {
@@ -409,11 +423,12 @@ public sealed class BlacklistService : IDisposable
             var merged = new BlacklistMetaInfo(
                 World: prev?.World ?? w,
                 Cid:   prev?.Cid   ?? c);
-            if (prev != null && prev.World == merged.World && prev.Cid == merged.Cid) return;
+            if (prev != null && prev.World == merged.World && prev.Cid == merged.Cid) return false;
             _meta[name] = merged;
         }
         _metaDirty = true;
         ScheduleMetaSave();
+        return true;
     }
 
     private void ScheduleMetaSave()
