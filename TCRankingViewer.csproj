@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/14.0.1">
+  <PropertyGroup>
+    <Version>1.0.2.0</Version>
+    <Description>自動從 TC 繁中服排名查詢隊友 Savage 排名。</Description>
+    <PackageProjectUrl>https://github.com/SamoyedQQ/TCRankingViewer</PackageProjectUrl>
+    <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+    <IsPackable>false</IsPackable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="ECommons\**" />
+    <Content Remove="ECommons\**" />
+    <EmbeddedResource Remove="ECommons\**" />
+    <None Remove="ECommons\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="TCRankingViewer.json" />
+    <Content Include="assets\icon.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>icon.png</TargetPath>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="ImGui.NET" Private="false" />
+  </ItemGroup>
+</Project>

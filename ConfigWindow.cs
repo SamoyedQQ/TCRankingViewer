@@ -1,0 +1,171 @@
+using System.Numerics;
+using Dalamud.Interface.Windowing;
+using ImGuiNET;
+
+namespace TCRankingViewer;
+
+public class ConfigWindow : Window, IDisposable
+{
+    private string _licenseKeyBuf = "";
+
+    public ConfigWindow() : base(
+        "TC排名查詢 設定##TCRankCfgWin",
+        ImGuiWindowFlags.AlwaysAutoResize)
+    { }
+
+    public override void OnOpen() => _licenseKeyBuf = "";
+
+    public override void Draw()
+    {
+        var cfg = Plugin.Configuration;
+
+        ImGui.TextColored(new Vector4(1, 0.85f, 0.3f, 1), "TC Savage 排名查詢 設定");
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        // ── 許可證金鑰 ─────────────────────────────────────────────────────
+        ImGui.TextColored(new Vector4(0.7f, 1f, 0.7f, 1), "許可證金鑰");
+        ImGui.Spacing();
+
+        if (cfg.GetLicenseKey() != null)
+            ImGui.TextColored(new Vector4(0.4f, 1f, 0.4f, 1), "✓ 已設定");
+        else
+            ImGui.TextColored(new Vector4(1f, 0.5f, 0.5f, 1), "✗ 尚未設定");
+
+        ImGui.Spacing();
+        ImGui.SetNextItemWidth(340);
+        ImGui.InputText("##licenseKey", ref _licenseKeyBuf, 64, ImGuiInputTextFlags.Password);
+        ImGui.SameLine();
+        if (ImGui.Button("儲存##lk"))
+        {
+            if (!string.IsNullOrWhiteSpace(_licenseKeyBuf))
+            {
+                cfg.SetLicenseKey(_licenseKeyBuf.Trim());
+                cfg.Save();
+                _licenseKeyBuf = "";
+            }
+        }
+        ImGui.SameLine();
+        if (ImGui.Button("清除##lk"))
+        {
+            _licenseKeyBuf = "";
+            cfg.ClearLicenseKey();
+            cfg.Save();
+        }
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        // ── 通知 ───────────────────────────────────────────────────────────
+        ImGui.TextColored(new Vector4(0.7f, 1f, 0.7f, 1), "通知");
+        ImGui.Spacing();
+
+        var chatNotify = cfg.ChatNotifyOnJoin;
+        if (ImGui.Checkbox("隊友加入時，在聊天框顯示排名通知", ref chatNotify))
+        { cfg.ChatNotifyOnJoin = chatNotify; cfg.Save(); }
+
+        var autoOpen = cfg.AutoOpenWindow;
+        if (ImGui.Checkbox("隊友加入時，自動開啟排名視窗", ref autoOpen))
+        { cfg.AutoOpenWindow = autoOpen; cfg.Save(); }
+
+        var notifyUnranked = cfg.NotifyUnranked;
+        if (ImGui.Checkbox("未上榜的隊友也顯示通知", ref notifyUnranked))
+        { cfg.NotifyUnranked = notifyUnranked; cfg.Save(); }
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        // ── 快取 ───────────────────────────────────────────────────────────
+        ImGui.TextColored(new Vector4(0.7f, 1f, 0.7f, 1), "資料快取");
+        ImGui.Spacing();
+
+        var cacheMin = cfg.CacheRefreshMinutes;
+        ImGui.SetNextItemWidth(130);
+        if (ImGui.SliderInt("自動更新間隔（分鐘）", ref cacheMin, 60, 1440))
+        { cfg.CacheRefreshMinutes = cacheMin; cfg.Save(); }
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        // ── 社群資料同步 ───────────────────────────────────────────────────────
+        ImGui.TextColored(new Vector4(0.7f, 1f, 0.7f, 1), "社群資料同步");
+        ImGui.Spacing();
+        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.85f, 0.4f, 1));
+        ImGui.TextWrapped("使用須知：啟用同步時，您的 CID 快取（角色 ID→名稱對應）或黑名單將上傳至共享伺服器供其他插件使用者下載。這些資料屬遊戲內公開可見資訊，但請確認知悉後再開啟。同步僅在插件啟動時執行一次。");
+        ImGui.PopStyleColor();
+        ImGui.Spacing();
+
+        var uploadCid = cfg.UploadCidCache;
+        if (ImGui.Checkbox("上傳本機 CID 快取至 server（貢獻角色 ID→名稱對應）", ref uploadCid))
+        { cfg.UploadCidCache = uploadCid; cfg.Save(); }
+
+        var syncCid = cfg.SyncCidCache;
+        if (ImGui.Checkbox("從 server 同步其他用戶的 CID 快取（補全本機未知角色名稱）", ref syncCid))
+        { cfg.SyncCidCache = syncCid; cfg.Save(); }
+
+        ImGui.Spacing();
+
+        var uploadBl = cfg.UploadBlacklist;
+        if (ImGui.Checkbox("上傳本機黑名單至 server（含備註，共享封鎖名單）", ref uploadBl))
+        { cfg.UploadBlacklist = uploadBl; cfg.Save(); }
+
+        var syncBl = cfg.SyncBlacklist;
+        if (ImGui.Checkbox("從 server 同步其他用戶的黑名單（在排行榜標記共享封鎖玩家）", ref syncBl))
+        { cfg.SyncBlacklist = syncBl; cfg.Save(); }
+
+        ImGui.TextColored(new Vector4(0.55f, 0.55f, 0.55f, 1),
+            $"本機 CID 快取 {Plugin.CidCache.Count} 筆  ·  共享黑名單（server）{Plugin.BlacklistService.ServerCount} 筆");
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        // ── 黑名單 ─────────────────────────────────────────────────────────
+        ImGui.TextColored(new Vector4(0.7f, 1f, 0.7f, 1), "黑名單");
+        ImGui.Spacing();
+        var blTotal = Plugin.BlacklistService.ServerCount > 0
+            ? $"本機 {Plugin.BlacklistService.Count} 筆 + server {Plugin.BlacklistService.ServerCount} 筆"
+            : $"共 {Plugin.BlacklistService.Count} 筆";
+        ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1),
+            $"{blTotal}  ·  每行一個名字，# 開頭為整行註解，「名字 # 備註」格式可加備註，儲存後自動套用");
+        var blPath = Plugin.BlacklistService.FilePath;
+        ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - 60);
+        ImGui.InputText("##blpath", ref blPath, 512, ImGuiInputTextFlags.ReadOnly);
+        ImGui.SameLine();
+        if (ImGui.Button("開啟##bl"))
+        {
+            try
+            {
+                if (!System.IO.File.Exists(blPath))
+                    System.IO.File.WriteAllText(blPath,
+                        "# 每行填入一個玩家名稱，儲存後自動生效\n# 可加備註：玩家名稱 # 備註文字\n# 例：\n# 草莓小蛋糕 # 喜歡搶奶\n");
+                System.Diagnostics.Process.Start(
+                    new System.Diagnostics.ProcessStartInfo(blPath) { UseShellExecute = true });
+            }
+            catch (Exception ex) { Plugin.Log.Warning(ex, "[Blacklist] 開啟檔案失敗"); }
+        }
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        // ── 狀態資訊 ───────────────────────────────────────────────────────
+        ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1),
+            $"狀態：{Plugin.RankingService.Status}");
+        ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1),
+            $"共 {Plugin.RankingService.TotalPlayers} 位玩家 " +
+            $"/ {Plugin.RankingService.TotalEntries} 筆條目");
+
+        ImGui.Spacing();
+        if (ImGui.Button("立即重新下載資料"))
+        {
+            _ = Plugin.RankingService.RefreshAsync(force: true)
+                .ContinueWith(_ => Plugin.PartyWatcher.RebuildResults());
+        }
+    }
+
+    public void Dispose() { }
+}
