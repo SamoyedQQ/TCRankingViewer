@@ -6,14 +6,19 @@ namespace TCRankingViewer;
 
 public class ConfigWindow : Window, IDisposable
 {
-    private string _licenseKeyBuf = "";
+    private string _licenseKeyBuf      = "";
+    private string _serverBlSearchBuf  = "";
 
     public ConfigWindow() : base(
         "TC排名查詢 設定##TCRankCfgWin",
         ImGuiWindowFlags.AlwaysAutoResize)
     { }
 
-    public override void OnOpen() => _licenseKeyBuf = "";
+    public override void OnOpen()
+    {
+        _licenseKeyBuf     = "";
+        _serverBlSearchBuf = "";
+    }
 
     public override void Draw()
     {
@@ -120,6 +125,30 @@ public class ConfigWindow : Window, IDisposable
             $"本機 CID 快取 {Plugin.CidCache.Count} 筆  ·  共享黑名單（server）{Plugin.BlacklistService.ServerCount} 筆");
 
         ImGui.Spacing();
+
+        // ── 手動同步按鈕 ──────────────────────────────────────────────────────
+        if (Plugin.IsSyncing)
+        {
+            ImGui.BeginDisabled();
+            ImGui.Button("同步中...");
+            ImGui.EndDisabled();
+        }
+        else if (ImGui.Button("立即同步社群資料"))
+        {
+            _ = Plugin.TriggerSyncAsync();
+        }
+        if (!string.IsNullOrEmpty(Plugin.LastSyncMessage))
+        {
+            ImGui.SameLine();
+            var msgColor = Plugin.LastSyncMessage!.StartsWith('✓')
+                ? new Vector4(0.45f, 0.90f, 0.45f, 1)
+                : Plugin.LastSyncMessage.StartsWith('✗')
+                    ? new Vector4(0.95f, 0.40f, 0.40f, 1)
+                    : new Vector4(0.55f, 0.55f, 0.55f, 1);
+            ImGui.TextColored(msgColor, Plugin.LastSyncMessage);
+        }
+
+        ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
 
@@ -148,6 +177,11 @@ public class ConfigWindow : Window, IDisposable
             catch (Exception ex) { Plugin.Log.Warning(ex, "[Blacklist] 開啟檔案失敗"); }
         }
 
+        // ── 檢視 server 黑名單清單 ────────────────────────────────────────────
+        ImGui.Spacing();
+        if (ImGui.CollapsingHeader($"檢視 server 共享黑名單（{Plugin.BlacklistService.ServerCount} 筆）##srvBl"))
+            DrawServerBlacklistTable();
+
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
@@ -165,6 +199,58 @@ public class ConfigWindow : Window, IDisposable
             _ = Plugin.RankingService.RefreshAsync(force: true)
                 .ContinueWith(_ => Plugin.PartyWatcher.RebuildResults());
         }
+    }
+
+    // 顯示 server 同步下來的共享黑名單清單(可搜尋過濾,固定高度可滑動)
+    private void DrawServerBlacklistTable()
+    {
+        var all = Plugin.BlacklistService.GetAllServerEntries().ToList();
+        if (all.Count == 0)
+        {
+            ImGui.TextColored(new Vector4(0.55f, 0.55f, 0.55f, 1),
+                "尚未同步或 server 上目前無共享條目（啟用「從 server 同步」並重新同步可載入）");
+            return;
+        }
+
+        ImGui.SetNextItemWidth(220);
+        ImGui.InputTextWithHint("##srvBlSearch", "搜尋名稱或備註...", ref _serverBlSearchBuf, 64);
+        ImGui.SameLine();
+        ImGui.TextColored(new Vector4(0.55f, 0.55f, 0.55f, 1), $"共 {all.Count} 筆");
+
+        var filtered = string.IsNullOrWhiteSpace(_serverBlSearchBuf)
+            ? all
+            : all.Where(e => e.Name.Contains(_serverBlSearchBuf, StringComparison.OrdinalIgnoreCase)
+                          || (e.Note?.Contains(_serverBlSearchBuf, StringComparison.OrdinalIgnoreCase) ?? false))
+                 .ToList();
+
+        const ImGuiTableFlags flags =
+            ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg |
+            ImGuiTableFlags.ScrollY | ImGuiTableFlags.SizingStretchProp;
+
+        // 固定高度限制顯示區,內部捲動避免設定視窗無限長
+        if (!ImGui.BeginTable("##srvBlTable", 2, flags, new Vector2(-1, 240)))
+            return;
+
+        ImGui.TableSetupScrollFreeze(0, 1);
+        ImGui.TableSetupColumn("名稱", ImGuiTableColumnFlags.WidthStretch, 1.0f);
+        ImGui.TableSetupColumn("備註", ImGuiTableColumnFlags.WidthStretch, 2.0f);
+        ImGui.TableHeadersRow();
+
+        var dim = new Vector4(0.55f, 0.55f, 0.55f, 1);
+        var red = new Vector4(0.95f, 0.40f, 0.40f, 1);
+        foreach (var entry in filtered)
+        {
+            ImGui.TableNextRow();
+            ImGui.TableSetColumnIndex(0);
+            ImGui.TextColored(red, entry.Name);
+            ImGui.TableSetColumnIndex(1);
+            if (string.IsNullOrEmpty(entry.Note))
+                ImGui.TextColored(dim, "─");
+            else
+                ImGui.TextUnformatted(entry.Note);
+        }
+
+        ImGui.EndTable();
     }
 
     public void Dispose() { }

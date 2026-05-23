@@ -75,7 +75,7 @@ public sealed class Plugin : IDalamudPlugin
             .ContinueWith(_ => Framework.RunOnTick(() => PartyWatcher.RebuildResults()));
 
         // server 同步：等待排名資料先下載完成後再執行，避免競爭
-        _ = Task.Run(SyncAsync);
+        _ = Task.Run(SyncOnStartupAsync);
 
         Log.Information("[TCRanking] 插件已載入。指令：/tcrank");
     }
@@ -98,13 +98,34 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.OpenConfigUi -= ToggleConfigUI;
     }
 
-    // ── 啟動時 server 資料同步（非阻塞，失敗不影響主功能）────────────────────
-    private static async Task SyncAsync()
+    // ── 社群資料同步 ────────────────────────────────────────────────────────
+    // 同步狀態供設定頁顯示（兩個欄位都僅由 TriggerSyncAsync 寫入，UI 端唯讀）
+    public static bool    IsSyncing      { get; private set; }
+    public static string? LastSyncMessage { get; private set; }
+
+    // 允許同步同時最多一個,避免按鈕連點或啟動同步與手動觸發互相覆蓋寫入
+    private static readonly SemaphoreSlim _syncLock = new(1, 1);
+
+    // 啟動時呼叫(含 3 秒 delay 讓排名下載先啟動避免競爭)
+    private static async Task SyncOnStartupAsync()
     {
-        // 稍作等待，讓排名下載先啟動
         await Task.Delay(3000);
+        await TriggerSyncAsync();
+    }
+
+    // 設定頁「立即同步社群資料」按鈕呼叫,以及啟動同步共用此入口
+    public static async Task TriggerSyncAsync()
+    {
+        if (!await _syncLock.WaitAsync(0))
+        {
+            // 已在同步中,忽略重複觸發
+            return;
+        }
         try
         {
+            IsSyncing      = true;
+            LastSyncMessage = "正在同步...";
+
             var tasks = new List<Task>();
 
             if (Configuration.SyncCidCache)
@@ -124,11 +145,18 @@ public sealed class Plugin : IDalamudPlugin
                 tasks.Add(RankingService.UploadBlacklistAsync(BlacklistService.GetAllLocalEntries()));
 
             await Task.WhenAll(tasks);
+            LastSyncMessage = $"✓ 同步完成 {DateTime.Now:HH:mm:ss}";
             Log.Debug("[Sync] 資料同步完成");
         }
         catch (Exception ex)
         {
+            LastSyncMessage = $"✗ 同步失敗:{ex.Message}";
             Log.Warning(ex, "[Sync] 資料同步失敗");
+        }
+        finally
+        {
+            IsSyncing = false;
+            _syncLock.Release();
         }
     }
 

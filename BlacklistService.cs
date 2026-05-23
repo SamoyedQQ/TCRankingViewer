@@ -300,6 +300,10 @@ public sealed class BlacklistService : IDisposable
     public IEnumerable<BlacklistEntry> GetAllLocalEntries()
         => _localEntries.Select(kvp => new BlacklistEntry(kvp.Key, kvp.Value));
 
+    // 取得 server 同步下來的共享黑名單條目,供設定頁顯示「server 上有哪些人」
+    public IEnumerable<BlacklistEntry> GetAllServerEntries()
+        => _serverEntries.Select(kvp => new BlacklistEntry(kvp.Key, kvp.Value));
+
     // 合併 server 下載的共享黑名單（本機條目永遠優先，不覆寫）
     public void MergeServerEntries(List<BlacklistEntry> serverList)
     {

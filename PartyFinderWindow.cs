@@ -187,12 +187,16 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
             ImGui.TextColored(Dim, "讀取中...");
         }
 
-        ImGui.SameLine(ImGui.GetContentRegionAvail().X - 60);
+        // 右側按鈕從右往左排列:設定 → 刷新（先佔據右端再 SameLine 接上去)
+        ImGui.SameLine(ImGui.GetContentRegionAvail().X - 100);
         if (ImGui.SmallButton("刷新"))
         {
             var addonPtr = Plugin.GameGui.GetAddonByName("LookingForGroupDetail", 1);
             Plugin.PartyFinderInspector.RefreshFromAgent(addonPtr);
         }
+        ImGui.SameLine();
+        if (ImGui.SmallButton("設定"))
+            Plugin.ConfigWindow.Toggle();
     }
 
     private static void DrawLoadingTable(int rowCount)
