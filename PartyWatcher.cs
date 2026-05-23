@@ -27,6 +27,8 @@ public class PartyWatcher : IDisposable
     }
 
     // ─── 收集隊伍成員名稱（同伺服器 + 跨伺服器）─────────────────────────────
+    // 順手把 (name, world, cid) 餵給 BlacklistService.RecordMeta，
+    // 讓黑名單上的玩家在下次上傳時帶上 server 跨服識別資訊
     private static unsafe HashSet<string> CollectPartyNames()
     {
         var names = new HashSet<string>();
@@ -37,8 +39,10 @@ public class PartyWatcher : IDisposable
             var n = m?.Name?.TextValue;
             if (string.IsNullOrEmpty(n)) continue;
             names.Add(n);
-            if (m!.ContentId != 0)
-                Plugin.CidCache.Set((ulong)m.ContentId, n);
+            var cid = m!.ContentId != 0 ? (ulong)m.ContentId : 0UL;
+            if (cid != 0) Plugin.CidCache.Set(cid, n);
+            var worldName = m.World.Value.Name.ToString();
+            Plugin.BlacklistService.RecordMeta(n, worldName, cid);
         }
 
         // 跨伺服器隊伍（InfoProxyCrossRealm）
@@ -56,11 +60,22 @@ public class PartyWatcher : IDisposable
                     names.Add(n);
                     if (member.ContentId != 0)
                         Plugin.CidCache.Set(member.ContentId, n);
+                    // CrossRealmMember 的 HomeWorld 是 short，需 cast 為 uint 再查 ExcelSheet<World>
+                    var worldName = ResolveWorldName((uint)member.HomeWorld);
+                    Plugin.BlacklistService.RecordMeta(n, worldName, member.ContentId);
                 }
             }
         }
 
         return names;
+    }
+
+    // 將 WorldId 轉成 World 名稱；查不到回 null（避免污染 meta）
+    private static string? ResolveWorldName(uint worldId)
+    {
+        if (worldId == 0) return null;
+        var sheet = Plugin.DataManager.GetExcelSheet<Lumina.Excel.Sheets.World>();
+        return sheet?.GetRowOrDefault(worldId)?.Name.ToString();
     }
 
     // ─── 每幀更新 ──────────────────────────────────────────────────────────

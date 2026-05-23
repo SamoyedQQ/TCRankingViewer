@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text.Json;
 using System.Threading;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
@@ -8,6 +9,9 @@ using Dalamud.Plugin.Services;
 
 namespace TCRankingViewer;
 
+// 側錄某玩家的伺服器與 ContentId，供上傳/匹配補強用；任一欄位可為 null
+public sealed record BlacklistMetaInfo(string? World, string? Cid);
+
 public sealed class BlacklistService : IDisposable
 {
     // 本機黑名單（從檔案載入），格式支援 "名字 # 備註"
@@ -16,6 +20,16 @@ public sealed class BlacklistService : IDisposable
     private Dictionary<string, string> _serverEntries = new(StringComparer.OrdinalIgnoreCase);
     // server 端有備註的所有條目（含本機已有的），供 GetNote fallback 使用
     private Dictionary<string, string> _serverNoteCache = new(StringComparer.OrdinalIgnoreCase);
+
+    // ── 玩家中繼資料（World / ContentId）持久化於 blacklist_meta.json ─────────
+    // - 用獨立 side-car 而非改 blacklist.txt 格式：使用者仍可手動編輯 .txt 不被影響
+    // - 來源：遊戲內黑名單 UI、PartyList、CrossRealmParty、PartyFinder 觀察
+    // - 用途：上傳到 server 時，為黑名單條目加上 world + cid 讓 admin 跨服精準辨識
+    private Dictionary<string, BlacklistMetaInfo> _meta = new(StringComparer.OrdinalIgnoreCase);
+    private readonly object _metaLock = new();
+    private string MetaFilePath { get; }
+    private volatile bool _metaDirty;
+    private Timer?        _metaSaveTimer;
 
     private readonly Timer _pollTimer;
     private DateTime _lastWriteTime;
@@ -36,9 +50,11 @@ public sealed class BlacklistService : IDisposable
     public BlacklistService()
     {
         var dir = Plugin.PluginInterface.GetPluginConfigDirectory();
-        FilePath = Path.Combine(dir, "blacklist.txt");
+        FilePath     = Path.Combine(dir, "blacklist.txt");
+        MetaFilePath = Path.Combine(dir, "blacklist_meta.json");
 
         Load();
+        LoadMeta();
         _lastWriteTime = File.Exists(FilePath) ? File.GetLastWriteTime(FilePath) : DateTime.MinValue;
 
         // Poll every 2 s for file changes instead of FileSystemWatcher (not available in Dalamud sandbox)
@@ -174,33 +190,53 @@ public sealed class BlacklistService : IDisposable
 
     private unsafe void ReadAndMerge(InfoProxyBlacklist* proxy)
     {
-        // 優先用 UI string array：可同時取得 PlayerNames + Notes（同 index 對齊）
-        // InfoProxy.BlockedCharacters 結構只有 Name/Id/Flag，沒有備註欄位
+        // 優先用 UI string array：可同時取得 PlayerNames + Homeworlds + Notes（同 index 對齊）
+        // InfoProxy.BlockedCharacters 結構有 Name/Id/Flag — 其中 Id 即 ContentId，
+        // 用 name 反查可同時補上 cid。string array 與 BlockedCharacters 不保證 index 對齊，
+        // 因此用 name 當 bridge 較安全。
         var entries = new List<(string name, string note)>();
-        var strArr  = BlackListStringArray.Instance();
+
+        // 先建 name → ContentId 對應表（從 InfoProxy）
+        var nameToCid = new Dictionary<string, ulong>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in proxy->BlockedCharacters)
+        {
+            var n = entry.Name.ToString();
+            if (string.IsNullOrWhiteSpace(n)) continue;
+            // FFXIVClientStructs 中此欄位為 Id，語意是 ContentId
+            if (entry.Id != 0) nameToCid[n] = entry.Id;
+        }
+
+        var strArr = BlackListStringArray.Instance();
         if (strArr != null)
         {
-            var names = strArr->PlayerNames;
-            var notes = strArr->Notes;
-            var len   = Math.Min(names.Length, notes.Length);
+            var names  = strArr->PlayerNames;
+            var worlds = strArr->Homeworlds;
+            var notes  = strArr->Notes;
+            var len    = Math.Min(names.Length, Math.Min(worlds.Length, notes.Length));
             for (var i = 0; i < len; i++)
             {
                 var name = names[i].ToString();
                 if (string.IsNullOrWhiteSpace(name)) continue;
-                entries.Add((name, notes[i].ToString() ?? ""));
+                var world = worlds[i].ToString() ?? "";
+                var note  = notes[i].ToString()  ?? "";
+                entries.Add((name, note));
+                // 順手把 world / cid 寫入 meta 側錄，供下次上傳時帶上 server
+                var cid = nameToCid.GetValueOrDefault(name, 0UL);
+                RecordMeta(name, world, cid);
             }
         }
         else
         {
-            // fallback：UI 端尚未填字串時，退回讀 InfoProxy（無備註）
+            // fallback：UI 端尚未填字串時，退回讀 InfoProxy（無備註與 world，但仍有 cid）
             foreach (var entry in proxy->BlockedCharacters)
             {
                 var name = entry.Name.ToString();
-                if (!string.IsNullOrWhiteSpace(name))
-                    entries.Add((name, ""));
+                if (string.IsNullOrWhiteSpace(name)) continue;
+                entries.Add((name, ""));
+                RecordMeta(name, null, entry.Id);
             }
         }
-        Plugin.Log.Info($"[Blacklist] 讀取遊戲黑名單 {entries.Count} 筆 (EntryCount={proxy->EntryCount})");
+        Plugin.Log.Info($"[Blacklist] 讀取遊戲黑名單 {entries.Count} 筆 (EntryCount={proxy->EntryCount}, cidKnown={nameToCid.Count})");
         MergeFromGame(entries);
     }
 
@@ -344,9 +380,82 @@ public sealed class BlacklistService : IDisposable
 
     // ── Server sync ───────────────────────────────────────────────────────────
 
-    // 取得所有本機黑名單條目，供上傳至 server
+    // 取得所有本機黑名單條目，供上傳至 server；若 meta 中有 world/cid 一併帶上
     public IEnumerable<BlacklistEntry> GetAllLocalEntries()
-        => _localEntries.Select(kvp => new BlacklistEntry(kvp.Key, kvp.Value));
+        => _localEntries.Select(kvp =>
+        {
+            BlacklistMetaInfo? meta;
+            lock (_metaLock) _meta.TryGetValue(kvp.Key, out meta);
+            return new BlacklistEntry(kvp.Key, kvp.Value, meta?.World, meta?.Cid);
+        });
+
+    // ── Meta 中繼資料：World / ContentId 觀察與持久化 ────────────────────────
+
+    // 任何時機（遊戲黑名單匯入、Party 觀察、PF 觀察）發現某玩家的 world / cid 都呼叫此 API
+    // 只在玩家確實在本機黑名單上時才寫入，避免 meta 無限膨脹
+    // 已存在的非空欄位不會被覆蓋（先到先贏，避免 stale 資料）
+    public void RecordMeta(string name, string? world, ulong contentId)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return;
+        if (!_localEntries.ContainsKey(name)) return;
+
+        var w = string.IsNullOrWhiteSpace(world) ? null : world!.Trim();
+        var c = contentId == 0 ? null : contentId.ToString();
+        if (w == null && c == null) return;
+
+        lock (_metaLock)
+        {
+            _meta.TryGetValue(name, out var prev);
+            var merged = new BlacklistMetaInfo(
+                World: prev?.World ?? w,
+                Cid:   prev?.Cid   ?? c);
+            if (prev != null && prev.World == merged.World && prev.Cid == merged.Cid) return;
+            _meta[name] = merged;
+        }
+        _metaDirty = true;
+        ScheduleMetaSave();
+    }
+
+    private void ScheduleMetaSave()
+    {
+        _metaSaveTimer?.Dispose();
+        _metaSaveTimer = new Timer(_ => SaveMeta(), null, 3000, Timeout.Infinite);
+    }
+
+    private void LoadMeta()
+    {
+        try
+        {
+            if (!File.Exists(MetaFilePath)) return;
+            var json   = File.ReadAllText(MetaFilePath);
+            var parsed = JsonSerializer.Deserialize<Dictionary<string, BlacklistMetaInfo>>(json);
+            if (parsed == null) return;
+            lock (_metaLock)
+                _meta = new Dictionary<string, BlacklistMetaInfo>(parsed, StringComparer.OrdinalIgnoreCase);
+            Plugin.Log.Info($"[Blacklist] 載入 meta 中繼資料 {_meta.Count} 筆");
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Warning(ex, "[Blacklist] meta 載入失敗");
+        }
+    }
+
+    private void SaveMeta()
+    {
+        if (!_metaDirty) return;
+        _metaDirty = false;
+        try
+        {
+            Dictionary<string, BlacklistMetaInfo> snapshot;
+            lock (_metaLock) snapshot = new(_meta);
+            File.WriteAllText(MetaFilePath, JsonSerializer.Serialize(snapshot));
+            Plugin.Log.Debug($"[Blacklist] meta 已儲存 {snapshot.Count} 筆");
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Warning(ex, "[Blacklist] meta 儲存失敗");
+        }
+    }
 
     // 取得 server 同步下來的共享黑名單條目,供設定頁顯示「server 上有哪些人」
     public IEnumerable<BlacklistEntry> GetAllServerEntries()
@@ -381,5 +490,7 @@ public sealed class BlacklistService : IDisposable
         if (_waiting) Plugin.Framework.Update -= OnFrameworkUpdate;
         UnmuteSound();
         _pollTimer.Dispose();
+        _metaSaveTimer?.Dispose();
+        SaveMeta(); // 退出前 flush，避免最後幾秒的觀察結果遺失
     }
 }

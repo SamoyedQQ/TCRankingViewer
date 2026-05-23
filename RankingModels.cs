@@ -347,9 +347,13 @@ public static class JobAbbrev
 }
 
 // ─── 共享黑名單條目（server sync 用）────────────────────────────────────────
+// World / Cid 為新欄位：舊版插件上傳/下載都沒有，預設 null；
+// Cid 用 string（uint64 在 JSON 無法安全往返），對應 FFXIV ContentId
 public record BlacklistEntry(
-    [property: System.Text.Json.Serialization.JsonPropertyName("name")] string Name,
-    [property: System.Text.Json.Serialization.JsonPropertyName("note")] string Note);
+    [property: System.Text.Json.Serialization.JsonPropertyName("name")]  string  Name,
+    [property: System.Text.Json.Serialization.JsonPropertyName("note")]  string  Note,
+    [property: System.Text.Json.Serialization.JsonPropertyName("world")] string? World = null,
+    [property: System.Text.Json.Serialization.JsonPropertyName("cid")]   string? Cid   = null);
 
 // ─── 隊伍成員查詢結果（聚合單一玩家所有副本）────────────────────────────────
 public class PartyMemberResult
