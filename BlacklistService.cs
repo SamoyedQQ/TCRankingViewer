@@ -2,6 +2,7 @@ using System.IO;
 using System.Threading;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
+using FFXIVClientStructs.FFXIV.Client.UI.Arrays;
 using FFXIVClientStructs.FFXIV.Client.UI.Info;
 using Dalamud.Plugin.Services;
 
@@ -11,8 +12,10 @@ public sealed class BlacklistService : IDisposable
 {
     // 本機黑名單（從檔案載入），格式支援 "名字 # 備註"
     private Dictionary<string, string> _localEntries = new(StringComparer.OrdinalIgnoreCase);
-    // server 同步下載的共享黑名單（僅儲存在記憶體，不寫入檔案）
+    // server 同步下載的共享黑名單中，不在本機清單的條目（供 ConfigWindow 表格顯示用）
     private Dictionary<string, string> _serverEntries = new(StringComparer.OrdinalIgnoreCase);
+    // server 端有備註的所有條目（含本機已有的），供 GetNote fallback 使用
+    private Dictionary<string, string> _serverNoteCache = new(StringComparer.OrdinalIgnoreCase);
 
     private readonly Timer _pollTimer;
     private DateTime _lastWriteTime;
@@ -171,15 +174,34 @@ public sealed class BlacklistService : IDisposable
 
     private unsafe void ReadAndMerge(InfoProxyBlacklist* proxy)
     {
-        var names = new List<string>();
-        foreach (var entry in proxy->BlockedCharacters)
+        // 優先用 UI string array：可同時取得 PlayerNames + Notes（同 index 對齊）
+        // InfoProxy.BlockedCharacters 結構只有 Name/Id/Flag，沒有備註欄位
+        var entries = new List<(string name, string note)>();
+        var strArr  = BlackListStringArray.Instance();
+        if (strArr != null)
         {
-            var name = entry.Name.ToString();
-            if (!string.IsNullOrWhiteSpace(name))
-                names.Add(name);
+            var names = strArr->PlayerNames;
+            var notes = strArr->Notes;
+            var len   = Math.Min(names.Length, notes.Length);
+            for (var i = 0; i < len; i++)
+            {
+                var name = names[i].ToString();
+                if (string.IsNullOrWhiteSpace(name)) continue;
+                entries.Add((name, notes[i].ToString() ?? ""));
+            }
         }
-        Plugin.Log.Info($"[Blacklist] 讀取遊戲黑名單 {names.Count} 筆 (EntryCount={proxy->EntryCount})");
-        MergeFromGame(names);
+        else
+        {
+            // fallback：UI 端尚未填字串時，退回讀 InfoProxy（無備註）
+            foreach (var entry in proxy->BlockedCharacters)
+            {
+                var name = entry.Name.ToString();
+                if (!string.IsNullOrWhiteSpace(name))
+                    entries.Add((name, ""));
+            }
+        }
+        Plugin.Log.Info($"[Blacklist] 讀取遊戲黑名單 {entries.Count} 筆 (EntryCount={proxy->EntryCount})");
+        MergeFromGame(entries);
     }
 
     private static unsafe InfoProxyBlacklist* GetProxy()
@@ -194,7 +216,11 @@ public sealed class BlacklistService : IDisposable
     }
 
     // ── File merge ────────────────────────────────────────────────────────────
-    private void MergeFromGame(List<string> imported)
+    // 三類處理：
+    //   1) 本機已有 name 且已有備註 → 保留本機（本機永遠優先）
+    //   2) 本機已有 name 但無備註、遊戲端有備註 → 原地補上 "name # note"
+    //   3) 本機完全沒有此 name → append 到新時間區段
+    private void MergeFromGame(List<(string name, string note)> imported)
     {
         if (imported.Count == 0)
         {
@@ -202,33 +228,55 @@ public sealed class BlacklistService : IDisposable
             return;
         }
 
-        var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (File.Exists(FilePath))
+        // 同名取最後一個有 note 的（防止同 name 重覆出現時備註被空字串覆蓋）
+        var importedMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (name, note) in imported)
         {
-            foreach (var line in File.ReadAllLines(FilePath))
+            if (!importedMap.TryGetValue(name, out var prev) || (string.IsNullOrEmpty(prev) && !string.IsNullOrEmpty(note)))
+                importedMap[name] = note ?? "";
+        }
+
+        var lines    = File.Exists(FilePath) ? File.ReadAllLines(FilePath).ToList() : new List<string>();
+        var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var updated  = 0;
+
+        for (var i = 0; i < lines.Count; i++)
+        {
+            var trimmed = lines[i].Trim();
+            var (name, note) = ParseLine(trimmed);
+            if (string.IsNullOrEmpty(name)) continue;
+            existing.Add(name);
+
+            // 補備註：本機無備註且遊戲端有
+            if (string.IsNullOrEmpty(note)
+                && importedMap.TryGetValue(name, out var gameNote)
+                && !string.IsNullOrEmpty(gameNote))
             {
-                var (name, _) = ParseLine(line.Trim());
-                if (!string.IsNullOrEmpty(name))
-                    existing.Add(name);
+                lines[i] = $"{name} # {gameNote}";
+                updated++;
             }
         }
 
-        var toAdd = imported.Where(n => !existing.Contains(n)).ToList();
-        if (toAdd.Count == 0)
+        var toAdd = importedMap.Where(kv => !existing.Contains(kv.Key)).ToList();
+
+        if (toAdd.Count == 0 && updated == 0)
         {
-            Plugin.Log.Info($"[Blacklist] 遊戲黑名單 {imported.Count} 筆全部已存在，無新增");
+            Plugin.Log.Info($"[Blacklist] 遊戲黑名單 {imported.Count} 筆，無新增亦無備註更新");
             return;
         }
 
-        using (var writer = File.AppendText(FilePath))
+        if (toAdd.Count > 0)
         {
-            if (new FileInfo(FilePath).Length > 0) writer.WriteLine();
-            writer.WriteLine($"# 遊戲黑名單匯入 {DateTime.Now:yyyy-MM-dd HH:mm}");
-            foreach (var name in toAdd)
-                writer.WriteLine(name);
+            // 與前面內容間隔一空行（若上一行已是空行則略過）
+            if (lines.Count > 0 && !string.IsNullOrWhiteSpace(lines[^1]))
+                lines.Add("");
+            lines.Add($"# 遊戲黑名單匯入 {DateTime.Now:yyyy-MM-dd HH:mm}");
+            foreach (var (name, note) in toAdd)
+                lines.Add(string.IsNullOrEmpty(note) ? name : $"{name} # {note}");
         }
 
-        Plugin.Log.Info($"[Blacklist] 新增 {toAdd.Count} 筆（遊戲黑名單共 {imported.Count} 筆）");
+        File.WriteAllLines(FilePath, lines);
+        Plugin.Log.Info($"[Blacklist] 新增 {toAdd.Count} 筆、補備註 {updated} 筆（遊戲黑名單共 {imported.Count} 筆）");
         Load();
     }
 
@@ -284,13 +332,13 @@ public sealed class BlacklistService : IDisposable
     public bool IsBlacklisted(string name)
         => _localEntries.ContainsKey(name) || _serverEntries.ContainsKey(name);
 
-    // 取得備註：本機備註優先，其次 server 備註；無備註回傳 null
+    // 取得備註：本機備註優先，其次 server 備註（含本機已有但無備註的條目）
     public string? GetNote(string name)
     {
-        if (_localEntries.TryGetValue(name, out var local))
-            return local.Length > 0 ? local : null;
-        if (_serverEntries.TryGetValue(name, out var server))
-            return server.Length > 0 ? server : null;
+        if (_localEntries.TryGetValue(name, out var local) && local.Length > 0)
+            return local;
+        if (_serverNoteCache.TryGetValue(name, out var cached) && cached.Length > 0)
+            return cached;
         return null;
     }
 
@@ -307,15 +355,20 @@ public sealed class BlacklistService : IDisposable
     // 合併 server 下載的共享黑名單（本機條目永遠優先，不覆寫）
     public void MergeServerEntries(List<BlacklistEntry> serverList)
     {
-        var merged = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var merged    = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var noteCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var entry in serverList)
         {
             if (string.IsNullOrEmpty(entry.Name)) continue;
-            // 本機已有的不覆寫
+            // 有備註的條目全部放進 noteCache，供 GetNote fallback（含本機已有但無備註者）
+            if (!string.IsNullOrEmpty(entry.Note))
+                noteCache[entry.Name] = entry.Note;
+            // 本機已有的不放進顯示清單，避免重複
             if (!_localEntries.ContainsKey(entry.Name))
                 merged[entry.Name] = entry.Note ?? "";
         }
-        _serverEntries = merged;
+        _serverEntries  = merged;
+        _serverNoteCache = noteCache;
         Plugin.Log.Info($"[Blacklist] 合併 server 共享黑名單 {merged.Count} 筆（本機 {_localEntries.Count} 筆不受影響）");
     }
 

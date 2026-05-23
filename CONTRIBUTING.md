@@ -167,6 +167,25 @@ private static bool TabItem(string label, bool forceSelect)
 }
 ```
 
+### MainWindow ↔ PartyFinderWindow 同步原則
+
+`MainWindow.cs` 與 `PartyFinderWindow.cs` 內部各自有一份 `DrawBlacklistButton`、`DrawEntryColumns`、`RankColor`、職業顏色表等實作，**目前為複製貼上、未抽共用 helper**。歷史上曾因為只改一邊（例如 popup 按鈕文字 `✕` → `黑名單Ｘ` 只更新 MainWindow）造成兩個視窗顯示不一致。
+
+**規範**：
+- 修改 `MainWindow.cs` 或 `PartyFinderWindow.cs` 中屬於兩邊共有的區塊時，**主動詢問使用者是否同步另一個檔案**，並指明對應位置。
+- 不要在未取得同意前擅自抽 helper / 共用 class。
+
+### BlacklistService — 遊戲黑名單匯入（含備註）
+
+遊戲端唯一可取得備註的資料來源是 [`BlackListStringArray`](FFXIVClientStructs.FFXIV.Client.UI.Arrays)（BlackList addon 顯示用的 UI string array），包含 `PlayerNames` / `Homeworlds` / `Notes` 三組 200-element array，同 index 對齊。
+
+`InfoProxyBlacklist.BlockedCharacter` 只有 `Name` / `Id` / `Flag`，**沒有備註欄位**，僅作為 fallback。
+
+`MergeFromGame` 採 read-modify-write，三類處理：
+1. 本機已有備註 → 不動（本機永遠優先）
+2. 本機有名字但無備註、遊戲端有備註 → 原地補成 `name # note`
+3. 全新名字 → append 至新的時間區段（含備註）
+
 ### EncounterMeta.SortByJobThenContent
 
 展開多筆排名時，以**職業分組**排序（同職業條目集中顯示），各職業組再依最佳副本優先級排序：

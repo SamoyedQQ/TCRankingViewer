@@ -443,7 +443,7 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
         ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.95f, 0.40f, 0.40f, 0.3f));
         ImGui.PushStyleColor(ImGuiCol.ButtonActive,  new Vector4(0.95f, 0.40f, 0.40f, 0.5f));
         ImGui.PushStyleColor(ImGuiCol.Text,          Red);
-        if (ImGui.SmallButton($"✕##{popupId}"))
+        if (ImGui.SmallButton($"黑名單Ｘ##{popupId}"))
             ImGui.OpenPopup(popupId);
         ImGui.PopStyleColor(4);
 

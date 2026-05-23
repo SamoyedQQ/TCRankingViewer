@@ -144,10 +144,19 @@ _serverEntries  // 來自伺服器同步（僅記憶體，不寫入 txt）
 ```
 
 - `IsBlacklisted(name)` — 同時檢查本機和伺服器
-- `GetNote(name)` — 本機備註優先，無本機時回傳伺服器備註，都沒有回傳 `null`
-- `Count` — 本機條目數；`ServerCount` — 伺服器條目數
+- `GetNote(name)` — **本機有備註時優先**；本機無備註（或不存在）才退回 `_serverNoteCache`；都沒有回傳 `null`
+- `Count` — 本機條目數；`ServerCount` — 伺服器條目數（不含本機已有的）
 - `GetAllLocalEntries()` — 回傳 `IEnumerable<BlacklistEntry>` 供上傳
-- `MergeServerEntries(List<BlacklistEntry>)` — 不覆蓋本機已有名稱
+- `MergeServerEntries(List<BlacklistEntry>)` — 不覆蓋本機已有名稱；同時建立 `_serverNoteCache`（含本機已有但 server 端有備註的條目，供 `GetNote` fallback 用）
+
+#### 遊戲黑名單匯入（含備註）
+
+`ReadAndMerge` 從 [`BlackListStringArray`](FFXIVClientStructs.FFXIV.Client.UI.Arrays) 讀取 `(PlayerNames, Notes)` 對齊 array — 這是 BlackList addon 顯示用的字串陣列，是**遊戲端唯一**能取得備註的來源（`InfoProxyBlacklist.BlockedCharacter` 只有 `Name/Id/Flag`，沒有備註欄位）。
+
+`MergeFromGame` 採 read-modify-write，三類處理：
+- 本機已有 name 且有備註 → 不動（本機永遠優先）
+- 本機已有 name 但無備註、遊戲端有備註 → 原地補成 `name # note`
+- 全新 name → append 至新時間區段（`# 遊戲黑名單匯入 yyyy-MM-dd HH:mm`），格式 `name # note` 或純 `name`
 
 ### RankingModels.cs — 新增模型
 
@@ -187,13 +196,23 @@ Active state 由三個欄位管理：
 
 ```csharp
 var popupId = $"blnote_{characterName}";
-// 透明背景 SmallButton 顯示紅色 "✕"
-if (ImGui.SmallButton($"✕##{popupId}")) ImGui.OpenPopup(popupId);
+// 透明背景 SmallButton 顯示紅色「黑名單Ｘ」
+if (ImGui.SmallButton($"黑名單Ｘ##{popupId}")) ImGui.OpenPopup(popupId);
 // Popup：玩家名稱（紅）+ 分隔線 + 備註（灰色「無備註」）
 if (ImGui.BeginPopup(popupId)) { ... ImGui.EndPopup(); }
 ```
 
-**注意**：此 popup 必須在 `ImGui.TableNextRow()` 範圍外的同一 ImGui frame 處理，否則 popup 會被 table clip 截斷。目前放置在 name 列後、BeginTable loop 內，ImGui 會正確渲染。
+**注意**：
+- 此 popup 必須在 `ImGui.TableNextRow()` 範圍外的同一 ImGui frame 處理，否則 popup 會被 table clip 截斷。目前放置在 name 列後、BeginTable loop 內，ImGui 會正確渲染。
+- 按鈕文字不可用單一 Unicode 符號（例如 `✕`），遊戲字型常會 fallback 成「=」之類的顯示。改用中文字「黑名單Ｘ」。
+
+### MainWindow ↔ PartyFinderWindow 同步原則
+
+兩個視窗的成員列各自有一份 `DrawBlacklistButton`、`DrawEntryColumns`、`RankColor`、職業色等實作（**目前是複製貼上、未抽共用**）。任何改動只在一邊修都會造成行為不一致（例如歷史 bug：popup 按鈕文字只改 MainWindow，PartyFinderWindow 留下 `✕` 顯示成「=」）。
+
+**規範**：
+- 修 `MainWindow.cs` 或 `PartyFinderWindow.cs` 任何屬於兩邊重複的區塊時，**主動詢問使用者是否同步另一個**，並指出對應位置與差異。
+- 不要擅自抽 helper / 共用 class — 需先取得同意。
 
 ### MainWindow
 - 展開時用 `EncounterMeta.SortByJobThenContent()` 排序，同職業條目集中顯示
