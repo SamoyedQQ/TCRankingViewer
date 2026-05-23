@@ -352,17 +352,42 @@ public sealed class BlacklistService : IDisposable
         try
         {
             var entries = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            if (File.Exists(FilePath))
+            if (!File.Exists(FilePath)) { _localEntries = entries; return; }
+
+            var rawLines = File.ReadAllLines(FilePath);
+            // 偵測「非空白 + 非註解 + ParseLine 解析失敗」的垃圾行（如 \x01 控制字元）並一次清掉
+            // 若不清，這種行會長期佔位（雖然 ParseLine 不會把它放進 _localEntries，但每次 Load 都得跳過）
+            var keptLines = new List<string>(rawLines.Length);
+            var droppedCount = 0;
+            foreach (var line in rawLines)
             {
-                foreach (var line in File.ReadAllLines(FilePath))
+                var trimmed = line.Trim();
+                if (trimmed.Length == 0 || trimmed.StartsWith('#'))
                 {
-                    var (name, note) = ParseLine(line.Trim());
-                    if (!string.IsNullOrEmpty(name))
-                        entries[name] = note;
+                    keptLines.Add(line);
+                    continue;
                 }
+                var (name, note) = ParseLine(trimmed);
+                if (string.IsNullOrEmpty(name))
+                {
+                    droppedCount++;
+                    continue;
+                }
+                entries[name] = note;
+                keptLines.Add(line);
             }
+
             _localEntries = entries;
-            Plugin.Log.Info($"[Blacklist] 載入 {entries.Count} 筆");
+            if (droppedCount > 0)
+            {
+                File.WriteAllLines(FilePath, keptLines);
+                _lastWriteTime = File.GetLastWriteTime(FilePath); // 避免自寫自讀觸發 PollFileChange 再 Load 一次
+                Plugin.Log.Info($"[Blacklist] 載入 {entries.Count} 筆（清除 {droppedCount} 行無效資料）");
+            }
+            else
+            {
+                Plugin.Log.Info($"[Blacklist] 載入 {entries.Count} 筆");
+            }
         }
         catch (Exception ex)
         {
@@ -371,14 +396,27 @@ public sealed class BlacklistService : IDisposable
     }
 
     // 解析一行：開頭 # 是整行註解；否則 '#' 之前為名字，之後為備註
+    // 名稱再過 IsMeaningfulName 過濾，避免控制字元（如 \x01 SOH）造成「看似空白」的垃圾條目
+    // 被當成有效黑名單持續上傳；曾發生使用者檔案開頭有 9 個 SOH 字元被當成名字上傳
     private static (string name, string note) ParseLine(string trimmedLine)
     {
         if (string.IsNullOrEmpty(trimmedLine) || trimmedLine.StartsWith('#'))
             return ("", "");
         var idx = trimmedLine.IndexOf('#');
-        if (idx < 0)
-            return (trimmedLine.Trim(), "");
-        return (trimmedLine[..idx].Trim(), trimmedLine[(idx + 1)..].Trim());
+        var (rawName, rawNote) = idx < 0
+            ? (trimmedLine.Trim(), "")
+            : (trimmedLine[..idx].Trim(), trimmedLine[(idx + 1)..].Trim());
+        return IsMeaningfulName(rawName) ? (rawName, rawNote) : ("", "");
+    }
+
+    // 「有意義」的玩家名字：至少有一個非控制字元、非空白的字元
+    // 若整串都是 \x01 / \0 / whitespace，視為垃圾資料
+    private static bool IsMeaningfulName(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return false;
+        foreach (var c in s)
+            if (!char.IsControl(c) && !char.IsWhiteSpace(c)) return true;
+        return false;
     }
 
     // ── 查詢 ──────────────────────────────────────────────────────────────────
@@ -415,7 +453,7 @@ public sealed class BlacklistService : IDisposable
     // 回傳是否實際變更（呼叫端可據此決定要不要 trigger sync）
     public bool RecordMeta(string name, string? world, ulong contentId)
     {
-        if (string.IsNullOrWhiteSpace(name)) return false;
+        if (!IsMeaningfulName(name)) return false;
 
         var w = string.IsNullOrWhiteSpace(world) ? null : world!.Trim();
         var c = contentId == 0 ? null : contentId.ToString();
