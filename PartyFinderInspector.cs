@@ -148,6 +148,15 @@ public sealed class PartyFinderInspector : IDisposable
 
         var (slots, slotsFilled, totalSlots) = CollectMemberSlots(addonPtr);
 
+        // 防禦性：若收集到的成員數超過遊戲回報，將多餘條目視為遊戲記憶體殘留並丟棄
+        // （正常情況下 CollectMemberSlots 已透過 break 條件防止這種情況）
+        if (slots.Count > slotsFilled)
+        {
+            Plugin.Log.Debug(
+                $"[PFInspector] 收集 {slots.Count} 槽位但 SlotsFilled={slotsFilled}，丟棄末端多餘條目");
+            slots.RemoveRange(slotsFilled, slots.Count - slotsFilled);
+        }
+
         SlotsFilled          = slotsFilled;
         TotalSlots           = totalSlots;
         CurrentRecruiterName = slots.Count > 0 && slots[0].name != null ? slots[0].name! : "";
@@ -210,65 +219,72 @@ public sealed class PartyFinderInspector : IDisposable
     }
 
     // ── CharaCard async lookup — updates _staged at the correct slot index ───────
+    // 注意：此方法被取消時必須跳過 _pendingLookups 的遞減，否則會污染新批次的計數
+    // 並導致新批次 _staged 內未處理完的 placeholder 被誤發布為「空名字 + 無紀錄」列
     private async Task LookupUnknownNamesAsync(
         List<(int idx, ulong cid, string job)> unknownSlots, CancellationToken ct)
     {
         foreach (var (idx, cid, preJob) in unknownSlots)
         {
-            if (ct.IsCancellationRequested) break;
+            if (ct.IsCancellationRequested) return;
+
+            PartyMemberResult? pmr = null;
             try
             {
                 var result = await Plugin.CharaCardLookup.RequestAsync(cid, ct);
-                lock (_lock)
+                if (ct.IsCancellationRequested) return; // 取消後丟棄結果，避免覆寫新批次的 _staged
+
+                if (!string.IsNullOrEmpty(result.Name))
                 {
-                    PartyMemberResult pmr;
-                    if (!string.IsNullOrEmpty(result.Name))
+                    var entries = Plugin.RankingService.Query(result.Name);
+                    // Prefer slot-cached job; fall back to CharaCard ClassJobId
+                    var job = !string.IsNullOrEmpty(preJob) ? preJob
+                        : result.ClassJobId != 0 ? JobAbbrev.GetByJobId(result.ClassJobId)
+                        : _jobCache.TryGetValue(cid, out var cj) ? cj : "";
+                    pmr = new PartyMemberResult
                     {
-                        var entries = Plugin.RankingService.Query(result.Name);
-                        // Prefer slot-cached job; fall back to CharaCard ClassJobId
-                        var job = !string.IsNullOrEmpty(preJob) ? preJob
-                            : result.ClassJobId != 0 ? JobAbbrev.GetByJobId(result.ClassJobId)
-                            : _jobCache.TryGetValue(cid, out var cj) ? cj : "";
-                        pmr = new PartyMemberResult
-                        {
-                            CharacterName = result.Name,
-                            CurrentJob    = job,
-                            IsFound       = entries.Count > 0,
-                            Entries       = entries,
-                        };
-                        Plugin.CidCache.Set(cid, result.Name);
-                        Plugin.Log.Debug($"[PFInspector] CharaCard 解析 {cid:X16} → {result.Name}");
-                    }
-                    else
-                    {
-                        pmr = new PartyMemberResult { IsUnresolvable = true };
-                        Plugin.Log.Debug($"[PFInspector] CharaCard 無法解析 {cid:X16}，加入佔位列");
-                    }
-
-                    if (idx < _staged.Count)
-                        _staged[idx] = pmr;
-
-                    UnresolvedCount = Math.Max(0, UnresolvedCount - 1);
+                        CharacterName = result.Name,
+                        CurrentJob    = job,
+                        IsFound       = entries.Count > 0,
+                        Entries       = entries,
+                    };
+                    Plugin.CidCache.Set(cid, result.Name);
+                    Plugin.Log.Debug($"[PFInspector] CharaCard 解析 {cid:X16} → {result.Name}");
+                }
+                else
+                {
+                    pmr = new PartyMemberResult { IsUnresolvable = true };
+                    Plugin.Log.Debug($"[PFInspector] CharaCard 無法解析 {cid:X16}，加入佔位列");
                 }
             }
-            catch (OperationCanceledException) { break; }
+            catch (OperationCanceledException) { return; }
             catch (Exception ex)
             {
                 Plugin.Log.Warning(ex,
                     $"[PFInspector] CharaCard 查詢失敗 {cid:X16}");
+                // 查詢失敗也要寫回 _staged，避免遺留空 placeholder 被誤發布為「空名字 + 無紀錄」列
+                pmr = new PartyMemberResult { IsUnresolvable = true };
             }
-            finally
+
+            // 寫回 _staged 與遞減計數都要在「未被取消」時才執行，否則會影響新批次
+            if (ct.IsCancellationRequested) return;
+
+            lock (_lock)
             {
-                var remaining = Interlocked.Decrement(ref _pendingLookups);
-                if (remaining == 0)
+                if (pmr != null && idx < _staged.Count)
+                    _staged[idx] = pmr;
+                UnresolvedCount = Math.Max(0, UnresolvedCount - 1);
+            }
+
+            var remaining = Interlocked.Decrement(ref _pendingLookups);
+            if (remaining == 0)
+            {
+                lock (_lock)
                 {
-                    lock (_lock)
-                    {
-                        _results.Clear();
-                        _results.AddRange(_staged);
-                    }
-                    Plugin.Log.Debug("[PFInspector] 所有查詢完成，發布結果");
+                    _results.Clear();
+                    _results.AddRange(_staged);
                 }
+                Plugin.Log.Debug("[PFInspector] 所有查詢完成，發布結果");
             }
         }
     }
@@ -306,6 +322,18 @@ public sealed class PartyFinderInspector : IDisposable
         // Jobs in slot order (index 0 = leader, 1+ = members) from latest ReceiveListing
         string[] cachedJobs = _rawJobsCache.TryGetValue(leaderCid, out var rj) ? rj : [];
 
+        // 校正 filled：SlotsFilled 偶爾會被遊戲記憶體殘留污染（成員離開但 count 沒更新），
+        // 此時 RawJobsPresent 反而比較準（由伺服器明確列出 listing 內每位成員的 job）。
+        // 當 cachedJobs.Length 比 filled 小，採用 cachedJobs.Length 為實際人數上限，
+        // 避免把遊戲殘留的非零 CID 誤判為「第 N 位成員」並加入解析隊伍。
+        if (cachedJobs.Length > 0 && cachedJobs.Length < filled)
+        {
+            Plugin.Log.Debug(
+                $"[PFInspector] SlotsFilled={filled} 但 RawJobsPresent 只有 {cachedJobs.Length} 人，" +
+                $"以 {cachedJobs.Length} 為實際成員數");
+            filled = cachedJobs.Length;
+        }
+
         // ── 1. Leader (slot 0) ───────────────────────────────────────────────────
         var leaderName = detailed->LeaderString;
         if (string.IsNullOrEmpty(leaderName))
@@ -327,6 +355,9 @@ public sealed class PartyFinderInspector : IDisposable
         var leaderOccurrences = 0;
         for (var i = 0; i < memberIds.Length; i++)
         {
+            // 先判斷是否已收集足夠成員，避免多讀遊戲殘留的非零 CID
+            if (slots.Count >= filled) break;
+
             var cid = memberIds[i];
             if (cid == 0) continue;
             if (cid == leaderCid) { leaderOccurrences++; continue; }
@@ -349,8 +380,6 @@ public sealed class PartyFinderInspector : IDisposable
                 Plugin.Log.Debug(
                     $"[PFInspector] ContentId {cid:X16} 未快取，排程 CharaCard 查詢");
             }
-
-            if (slots.Count >= filled) break;
         }
 
         return (slots, filled, total);

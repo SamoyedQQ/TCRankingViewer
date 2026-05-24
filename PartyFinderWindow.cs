@@ -268,6 +268,19 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
                 continue;
             }
 
+            // 延遲補查：若初次解析時 RankingService 尚未就緒（_index 還沒建好），
+            // Query 會回傳空 list 導致顯示「無紀錄」。每次 Draw 時若發現 entries
+            // 為空就再查一次（純 dictionary lookup，O(1)），撈到資料就補上。
+            if (member.Entries.Count == 0 && !string.IsNullOrEmpty(member.CharacterName))
+            {
+                var fresh = Plugin.RankingService.Query(member.CharacterName);
+                if (fresh.Count > 0)
+                {
+                    member.Entries = fresh;
+                    member.IsFound = true;
+                }
+            }
+
             var filtered     = FilterEntries(member.Entries);
             var sorted       = filtered.Count > 0
                 ? EncounterMeta.SortByJobThenContent(filtered)
