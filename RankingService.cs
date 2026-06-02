@@ -8,7 +8,7 @@ namespace TCRankingViewer;
 
 public class RankingService : IDisposable
 {
-    private const string WorkerBaseUrl = "https://api.tc-ranking-viewer.workers.dev";
+    private const string WorkerBaseUrl = "https://api.tommy04166-a79.workers.dev";
 
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
