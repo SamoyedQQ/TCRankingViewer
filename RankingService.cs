@@ -83,13 +83,11 @@ public class RankingService : IDisposable
                 return;
             }
 
-            Plugin.Log.Information("[TCRanking] 下載 encounters + player_bests...");
+            Plugin.Log.Information("[TCRanking] 下載 encounters...");
 
-            var encountersTask = GetWithAuthAsync(licenseKey, "/encounters");
-            var samoyedTask    = GetWithAuthAsync(licenseKey, "/ultimate");
-            await Task.WhenAll(encountersTask, samoyedTask);
+            var encountersJson = await GetWithAuthAsync(licenseKey, "/encounters");
 
-            var keys = ParseEncounterKeys(await encountersTask);
+            var keys = ParseEncounterKeys(encountersJson);
             Plugin.Log.Information($"[TCRanking] 取得 {keys.Count} 個副本，並行下載排名...");
             _status = $"正在下載 {keys.Count} 個副本排名...";
 
@@ -133,11 +131,6 @@ public class RankingService : IDisposable
                     }
                 }
             }
-
-            // SamoyedQQ 絕本資料：dict key = "name@server:encounter_id:job"，client-side 計算 rank
-            var samoyedDict =
-                JsonSerializer.Deserialize<Dictionary<string, SamoyedEntry>>(await samoyedTask, JsonOpts) ?? [];
-            AddSamoyedEntries(allEntries, samoyedDict.Values);
 
             _index       = BuildIndex(allEntries);
             _lastFetched = DateTime.UtcNow;
@@ -198,111 +191,6 @@ public class RankingService : IDisposable
         {
             Plugin.Log.Warning($"[TCRanking] 無法下載 /rankings/{key}: {ex.Message}");
             return null;
-        }
-    }
-
-    // ─── SamoyedQQ 絕本條目：清板計算排名 + 未通關顯示最遠進度 ───────────────
-    // 注意：SamoyedQQ encounter 欄位為分相位 ID（Garuda/Ifrit/Ultima 各自不同），
-    // 必須先映射至顯示名稱後再分組，否則同一絕本的不同相位會產生多組排名，
-    // 導致玩家在人數較少的相位中被誤判為極高排名。
-    private static void AddSamoyedEntries(List<RankingEntry> target, IEnumerable<SamoyedEntry> samoyed)
-    {
-        var samoyedList = samoyed.ToList();
-
-        // ── 清板條目 ──────────────────────────────────────────────────────────
-        var mapped = samoyedList
-            .Where(e => e.IsClear && !string.IsNullOrWhiteSpace(e.Name))
-            .Select(e =>
-            {
-                var (bossName, category) = EncounterMeta.MapSamoyedEncounterId(e.EncounterId, e.Encounter);
-                return (e, bossName, category);
-            });
-
-        var groups = mapped.GroupBy(x => (x.bossName, x.e.Job));
-
-        foreach (var group in groups)
-        {
-            var bossName = group.Key.bossName;
-            var category = group.First().category;
-
-            // 同一玩家可能在多個相位都有記錄，只保留 rDPS 最高的一筆
-            var ranked = group
-                .GroupBy(x => x.e.Name)
-                .Select(pg => pg.MaxBy(x => x.e.Rdps)!)
-                .OrderByDescending(x => x.e.Rdps)
-                .ToList();
-
-            for (var i = 0; i < ranked.Count; i++)
-            {
-                var e = ranked[i].e;
-                target.Add(new RankingEntry
-                {
-                    Rank          = i + 1,
-                    Boss          = bossName,
-                    Category      = category,
-                    IsObsolete    = false,
-                    Job           = e.Job,
-                    PlayerName    = e.Name,
-                    Rdps          = e.Rdps,
-                    Adps          = e.Adps,
-                    FightDuration = e.DurationMs / 1000.0,
-                });
-            }
-        }
-
-        // ── 未通關進度條目：只為「對應 boss 沒有清板記錄」的玩家建立 ──────────
-        var clearedSet = new HashSet<(string name, string bossName)>(
-            samoyedList
-                .Where(e => e.IsClear && !string.IsNullOrWhiteSpace(e.Name))
-                .Select(e =>
-                {
-                    var (bossName, _) = EncounterMeta.MapSamoyedEncounter(e.Encounter);
-                    return (e.Name.ToLowerInvariant(), bossName);
-                })
-        );
-
-        var wipeMapped = samoyedList
-            .Where(e => !e.IsClear && !string.IsNullOrWhiteSpace(e.Name))
-            .Select(e =>
-            {
-                var (bossName, category) = EncounterMeta.MapSamoyedEncounterId(e.EncounterId, e.Encounter);
-                return (e, bossName, category);
-            })
-            .Where(x => !clearedSet.Contains((x.e.Name.ToLowerInvariant(), x.bossName)));
-
-        // 以 (玩家名, boss) 為分組鍵，取最遠相位（相位順序優先，相同則取 rDPS 最高）
-        var wipeGroups = wipeMapped.GroupBy(x => (x.e.Name, x.bossName));
-
-        foreach (var group in wipeGroups)
-        {
-            var bossName = group.Key.bossName;
-            var category = group.First().category;
-
-            // 優先用 phase_reached 整數排序（直接來自 scraper），0 表示未知則 fallback 到 rDPS
-            var best = group
-                .OrderByDescending(x =>
-                    (long)x.e.PhaseReached * 1_000_000L +
-                    (long)x.e.Rdps)
-                .First();
-
-            var jobName = best.e.Job.Contains("_wipe", StringComparison.OrdinalIgnoreCase)
-                ? "" : best.e.Job;
-
-            target.Add(new RankingEntry
-            {
-                Rank          = 0,
-                Boss          = bossName,
-                Category      = category,
-                IsObsolete    = false,
-                IsProg        = true,
-                FurthestPhase = EncounterMeta.MapPhaseByEncounterId(best.e.EncounterId, best.e.PhaseReached),
-                PhaseNumber   = best.e.PhaseReached,
-                Job           = jobName,
-                PlayerName    = best.e.Name,
-                Rdps          = best.e.Rdps,
-                Adps          = best.e.Adps,
-                FightDuration = best.e.DurationMs / 1000.0,
-            });
         }
     }
 

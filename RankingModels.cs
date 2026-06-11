@@ -58,20 +58,6 @@ public class KantaiRankingEntry
     [JsonPropertyName("clear_time_seconds")] public double ClearTimeSeconds { get; set; }
 }
 
-// ─── SamoyedQQ player_bests.json ─────────────────────────────────────────────
-public class SamoyedEntry
-{
-    [JsonPropertyName("name")]          public string Name         { get; set; } = "";
-    [JsonPropertyName("job")]           public string Job          { get; set; } = "";
-    [JsonPropertyName("encounter")]     public string Encounter    { get; set; } = "";
-    [JsonPropertyName("encounter_id")]  public int    EncounterId  { get; set; }   // 1073–1077
-    [JsonPropertyName("rdps")]          public double Rdps         { get; set; }
-    [JsonPropertyName("adps")]          public double Adps         { get; set; }
-    [JsonPropertyName("is_clear")]      public bool   IsClear      { get; set; }
-    [JsonPropertyName("duration_ms")]   public long   DurationMs   { get; set; }
-    [JsonPropertyName("phase_reached")] public int    PhaseReached { get; set; }   // 未通關到達 phase；0=未知
-}
-
 // ─── 副本元資料（名稱對照、類別分組、badge 優先級）───────────────────────────
 public static class EncounterMeta
 {
@@ -105,73 +91,6 @@ public static class EncounterMeta
 
     public static bool IsObsoleteKey(string key)
         => ObsoleteKeys.Contains(key);
-
-    // SamoyedQQ 英文副本名 → (中文名, category)
-    public static (string Name, string Category) MapSamoyedEncounter(string enc)
-    {
-        if (enc.Contains("Omega",      StringComparison.OrdinalIgnoreCase))
-            return ("絕 歐米茄",   "絕");
-        if (enc.Contains("Adelphel",   StringComparison.OrdinalIgnoreCase) ||
-            enc.Contains("left eye",   StringComparison.OrdinalIgnoreCase) ||
-            enc.Contains("Thordan",    StringComparison.OrdinalIgnoreCase) ||
-            enc.Contains("Dragonsong", StringComparison.OrdinalIgnoreCase) ||
-            enc.Contains("spear of the Fury", StringComparison.OrdinalIgnoreCase))
-            return ("絕 龍詩戰爭", "絕");
-        if (enc.Contains("Twintania",  StringComparison.OrdinalIgnoreCase) ||
-            enc.Contains("Nael",       StringComparison.OrdinalIgnoreCase) ||
-            enc.Contains("Bahamut",    StringComparison.OrdinalIgnoreCase))
-            return ("絕 巴哈姆特", "絕");
-        if (enc.Contains("Alexander",  StringComparison.OrdinalIgnoreCase) ||
-            enc.Contains("liquid",     StringComparison.OrdinalIgnoreCase))
-            return ("絕 亞歷山大", "絕");
-        if (enc.Contains("Ultima",     StringComparison.OrdinalIgnoreCase) ||
-            enc.Contains("Garuda",     StringComparison.OrdinalIgnoreCase) ||
-            enc.Contains("Ifrit",      StringComparison.OrdinalIgnoreCase) ||
-            enc.Contains("Titan",      StringComparison.OrdinalIgnoreCase) ||
-            enc.Contains("究極武器"))
-            return ("絕 究極神兵", "絕");
-        return (enc, "絕");
-    }
-
-    // encounter_id（1073–1077）→ (bossName, category)；id 為 0 時 fallback 到字串比對
-    public static (string Name, string Category) MapSamoyedEncounterId(int encId, string fallback)
-        => encId switch
-        {
-            1073 => ("絕 巴哈姆特",  "絕"),
-            1074 => ("絕 究極神兵",  "絕"),
-            1075 => ("絕 亞歷山大",  "絕"),
-            1076 => ("絕 龍詩戰爭",  "絕"),
-            1077 => ("絕 歐米茄",    "絕"),
-            _    => MapSamoyedEncounter(fallback),
-        };
-
-    // (encounter_id, phase_reached) → 繁中相位顯示名稱
-    public static string MapPhaseByEncounterId(int encId, int phase) => encId switch
-    {
-        1073 => phase switch   // UCoB：5 phases（P3/P4 共用）
-        {
-            1 => "雙塔尼亞", 2 => "奈爾", _ => "巴哈姆特",
-        },
-        1074 => phase switch   // UWU：4 phases
-        {
-            1 => "加魯達", 2 => "伊弗利特", 3 => "泰坦", _ => "究極武器",
-        },
-        1075 => phase switch   // TEA：4 phases
-        {
-            1 => "液態亞歷山大", 2 => "暴力審判", 3 => "亞歷山大", _ => "完美亞歷山大",
-        },
-        1076 => phase switch   // DSR：7 phases
-        {
-            1 => "亞德費爾", 2 => "托爾丹", 3 => "尼德霍格",
-            4 => "左右眼",   5 => "聖矛",   6 => "宏斯瓦爾格", _ => "龍王托爾丹",
-        },
-        1077 => phase switch   // TOP：6 phases（P3/P4 共用）
-        {
-            1 => "奧米加", 2 => "奧米加 M/F", 3 => "奧米加重組",
-            5 => "動態模擬", _ => "終端奧米加",
-        },
-        _ => $"P{phase}",
-    };
 
     // 從 ContentFinderCondition 副本名稱推導 BadgePriority fragment（用於摺疊時優先顯示當前副本）
     public static string? GetBossFragmentForDutyName(string dutyName)
@@ -211,79 +130,6 @@ public static class EncounterMeta
             if (e.Boss.Contains(BadgePriority[i].Fragment, StringComparison.OrdinalIgnoreCase))
             { base_ = i; break; }
         return e.IsProg ? base_ + 1000 : base_;
-    }
-
-    // SamoyedQQ encounter 欄位 → 相位顯示名稱（繁中）
-    public static string MapSamoyedPhaseName(string enc)
-    {
-        if (enc.Contains("Garuda",     StringComparison.OrdinalIgnoreCase)) return "加魯達";
-        if (enc.Contains("Ifrit",      StringComparison.OrdinalIgnoreCase)) return "伊弗利特";
-        if (enc.Contains("Titan",      StringComparison.OrdinalIgnoreCase)) return "泰坦";
-        if (enc.Contains("Ultima",     StringComparison.OrdinalIgnoreCase)) return "究極武器";
-        if (enc.Contains("Twintania",  StringComparison.OrdinalIgnoreCase)) return "雙塔尼亞";
-        if (enc.Contains("Nael",       StringComparison.OrdinalIgnoreCase)) return "奈爾";
-        if (enc.Contains("Bahamut",    StringComparison.OrdinalIgnoreCase)) return "巴哈姆特";
-        if (enc.Contains("liquid",     StringComparison.OrdinalIgnoreCase)) return "液態亞歷山大";
-        if (enc.Contains("Alexander",  StringComparison.OrdinalIgnoreCase)) return "亞歷山大";
-        if (enc.Contains("Adelphel",   StringComparison.OrdinalIgnoreCase)) return "亞德費爾";
-        if (enc.Contains("left eye",   StringComparison.OrdinalIgnoreCase)) return "左眼";
-        if (enc.Contains("spear",      StringComparison.OrdinalIgnoreCase)) return "聖矛";
-        if (enc.Contains("Dragonsong", StringComparison.OrdinalIgnoreCase)) return "龍詩";
-        if (enc.Contains("Thordan",    StringComparison.OrdinalIgnoreCase)) return "托爾丹";
-        if (enc.Contains("Omega",      StringComparison.OrdinalIgnoreCase)) return "歐米茄";
-        return enc;
-    }
-
-    // 相位序號（P1/P2/P3...顯示用）— 各絕本獨立從 1 開始
-    public static int GetSamoyedPhaseNumber(string enc)
-    {
-        // 究極神兵
-        if (enc.Contains("Garuda",     StringComparison.OrdinalIgnoreCase)) return 1;
-        if (enc.Contains("Ifrit",      StringComparison.OrdinalIgnoreCase)) return 2;
-        if (enc.Contains("Titan",      StringComparison.OrdinalIgnoreCase)) return 3;
-        if (enc.Contains("Ultima",     StringComparison.OrdinalIgnoreCase)) return 4;
-        // 絕巴哈
-        if (enc.Contains("Twintania",  StringComparison.OrdinalIgnoreCase)) return 1;
-        if (enc.Contains("Nael",       StringComparison.OrdinalIgnoreCase)) return 2;
-        if (enc.Contains("Bahamut",    StringComparison.OrdinalIgnoreCase)) return 3;
-        // 絕亞歷山大
-        if (enc.Contains("liquid",     StringComparison.OrdinalIgnoreCase)) return 1;
-        if (enc.Contains("Alexander",  StringComparison.OrdinalIgnoreCase)) return 2;
-        // 絕龍詩
-        if (enc.Contains("Adelphel",   StringComparison.OrdinalIgnoreCase)) return 1;
-        if (enc.Contains("Thordan",    StringComparison.OrdinalIgnoreCase)) return 2;
-        if (enc.Contains("left eye",   StringComparison.OrdinalIgnoreCase)) return 3;
-        if (enc.Contains("spear",      StringComparison.OrdinalIgnoreCase)) return 4;
-        if (enc.Contains("Dragonsong", StringComparison.OrdinalIgnoreCase)) return 5;
-        // 絕歐米茄
-        if (enc.Contains("Omega",      StringComparison.OrdinalIgnoreCase)) return 1;
-        return 0;
-    }
-
-    // 同一絕本內相位排序（越大 = 越後期）
-    public static int GetSamoyedPhaseOrder(string enc)
-    {
-        // 究極神兵
-        if (enc.Contains("Garuda",     StringComparison.OrdinalIgnoreCase)) return 10;
-        if (enc.Contains("Ifrit",      StringComparison.OrdinalIgnoreCase)) return 11;
-        if (enc.Contains("Titan",      StringComparison.OrdinalIgnoreCase)) return 12;
-        if (enc.Contains("Ultima",     StringComparison.OrdinalIgnoreCase)) return 13;
-        // 絕巴哈
-        if (enc.Contains("Twintania",  StringComparison.OrdinalIgnoreCase)) return 20;
-        if (enc.Contains("Nael",       StringComparison.OrdinalIgnoreCase)) return 21;
-        if (enc.Contains("Bahamut",    StringComparison.OrdinalIgnoreCase)) return 22;
-        // 絕亞歷山大
-        if (enc.Contains("liquid",     StringComparison.OrdinalIgnoreCase)) return 30;
-        if (enc.Contains("Alexander",  StringComparison.OrdinalIgnoreCase)) return 31;
-        // 絕龍詩
-        if (enc.Contains("Adelphel",   StringComparison.OrdinalIgnoreCase)) return 40;
-        if (enc.Contains("Thordan",    StringComparison.OrdinalIgnoreCase)) return 41;
-        if (enc.Contains("left eye",   StringComparison.OrdinalIgnoreCase)) return 42;
-        if (enc.Contains("spear",      StringComparison.OrdinalIgnoreCase)) return 43;
-        if (enc.Contains("Dragonsong", StringComparison.OrdinalIgnoreCase)) return 44;
-        // 絕歐米茄
-        if (enc.Contains("Omega",      StringComparison.OrdinalIgnoreCase)) return 50;
-        return 0;
     }
 
     // 依職業分組後排序：同職業放一起，各組以最高優先副本排序，組內依副本優先 → Rank
