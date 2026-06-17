@@ -71,8 +71,10 @@ public static class EncounterMeta
         { { "絕 幻想龍詩", "絕 龍詩戰爭" } };
 
     // Badge 優先級（最難 → 最簡單），fragment 用來 Contains 比對 Boss 名稱
+    // 絕伊甸（絕 伊甸 / Futures Rewritten）為目前最新且公認最難的絕本，故置於最前
     public static readonly (string Fragment, string Label)[] BadgePriority =
     [
+        ("伊甸",     "伊甸"),
         ("歐米茄",   "歐米茄"),
         ("龍詩戰爭", "龍詩"),
         ("巴哈姆特", "巴哈"),
