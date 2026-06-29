@@ -84,6 +84,7 @@ public static class EncounterMeta
         ("M3S",      "M3S"),
         ("M2S",      "M2S"),
         ("M1S",      "M1S"),
+        ("黑暗之雲", "滅暗雲"),   // 滅 Chaotic 24 人聯盟團（The Cloud of Darkness (Chaotic)）
         ("永恆女王", "極女王"),
         ("白虎",     "幻白虎"),
     ];
@@ -101,6 +102,9 @@ public static class EncounterMeta
         foreach (var (fragment, _) in BadgePriority)
             if (dutyName.Contains(fragment, StringComparison.OrdinalIgnoreCase))
                 return fragment;
+        // 滅 Chaotic 聯盟團：TC 副本名可能用「暗之雲」而非完整「黑暗之雲」，
+        // 故 BadgePriority 迴圈的「黑暗之雲」fragment 不一定命中，這裡補寬鬆比對
+        if (IsChaoticDutyName(dutyName)) return "黑暗之雲";
         // TC 別名：絕境武器討滅戰 / 究極武器 → 究極神兵
         if (dutyName.Contains("究極武器", StringComparison.OrdinalIgnoreCase) ||
             dutyName.Contains("Weapon's Refrain", StringComparison.OrdinalIgnoreCase))
@@ -112,6 +116,20 @@ public static class EncounterMeta
         if (dutyName.Contains("輕量級1")) return "M1S";
         return null;
     }
+
+    // 判斷 TC 副本名是否為「滅」Chaotic 聯盟團（黑暗之雲 / The Cloud of Darkness (Chaotic)）。
+    // 寬鬆比對：名稱同時含「雲」與「暗」或「闇」即視為黑暗之雲系列，容忍繁中／日文用字差異
+    // （滅 黑暗之雲 / 暗之雲 / 暗闇の雲 皆命中）。用於「當前副本是否為滅暗雲」的綠底判定。
+    public static bool IsChaoticDutyName(string dutyName)
+    {
+        if (string.IsNullOrEmpty(dutyName)) return false;
+        return dutyName.Contains('雲') &&
+               (dutyName.Contains('暗') || dutyName.Contains('闇'));
+    }
+
+    // 玩家是否有「滅」清板紀錄（排除未通關進度條目）
+    public static bool HasChaoticClear(IEnumerable<RankingEntry> entries)
+        => entries.Any(e => e.Category == "滅" && !e.IsProg);
 
     // 從玩家 entries 取得最高優先級 badge label（僅清板條目；找不到回傳 null）
     public static string? GetBadge(IEnumerable<RankingEntry> entries)

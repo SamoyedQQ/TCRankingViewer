@@ -14,6 +14,14 @@ public class MainWindow : Window, IDisposable
     private static readonly Vector4 Dim     = new(0.55f, 0.55f, 0.55f, 1f);
     private static readonly Vector4 White   = new(1.00f, 1.00f, 1.00f, 1f);
     private static readonly Vector4 Teal    = new(0.40f, 0.85f, 0.85f, 1f);
+    private static readonly Vector4 Purple  = new(0.78f, 0.58f, 0.96f, 1f);   // 滅暗雲分類色
+
+    // 滅暗雲 3×8 精簡格狀的儲存格淡色底（與 PartyFinderWindow 同步維護）
+    // 滅暗雲有「初通關」額外獎勵：未通關者才是首通招募目標 → 未通關綠、已通關紅
+    private static readonly Vector4 GridUncleared = new(0.25f, 0.60f, 0.32f, 0.45f); // 淡綠：未通關
+    private static readonly Vector4 GridCleared   = new(0.66f, 0.26f, 0.26f, 0.42f); // 淡紅：已通關
+    private static readonly Vector4 GridNeutral   = new(0.30f, 0.30f, 0.32f, 0.30f); // 淡灰：未知
+    private static readonly Vector4 GridBlack     = new(0.40f, 0.16f, 0.16f, 0.55f); // 深紅：黑名單
 
     private static readonly Dictionary<string, Vector4> JobColors =
         new(StringComparer.Ordinal)
@@ -54,7 +62,11 @@ public class MainWindow : Window, IDisposable
         DrawCategoryTabs();
         DrawStatus();
         ImGui.Separator();
-        DrawTable();
+        // 滅暗雲分頁改用 3×8 精簡格狀（綠=未通關／紅=已通關），其餘分頁維持原表格
+        if (_categoryFilter == "滅")
+            DrawChaoticGrid();
+        else
+            DrawTable();
     }
 
     private void DrawToolbar()
@@ -92,6 +104,7 @@ public class MainWindow : Window, IDisposable
         if (ImGui.BeginTabItem("全部"))    { _categoryFilter = "全部";  ImGui.EndTabItem(); }
         if (ImGui.BeginTabItem("零式"))    { _categoryFilter = "零式";  ImGui.EndTabItem(); }
         if (ImGui.BeginTabItem("絕境戰"))  { _categoryFilter = "絕";    ImGui.EndTabItem(); }
+        if (ImGui.BeginTabItem("滅暗雲"))  { _categoryFilter = "滅";    ImGui.EndTabItem(); }
         if (ImGui.BeginTabItem("極 / 幻")) { _categoryFilter = "極/幻"; ImGui.EndTabItem(); }
 
         ImGui.EndTabBar();
@@ -101,6 +114,115 @@ public class MainWindow : Window, IDisposable
     {
         var color = Plugin.RankingService.IsReady ? Green : Red;
         ImGui.TextColored(color, Plugin.RankingService.Status);
+    }
+
+    // ── 滅暗雲 3×8 精簡格狀（隊伍成員通關狀態一覽）──────────────────────────────
+    // 與 PartyFinderWindow.DrawCompactGrid／DrawCompactCell 為同步維護的重複實作；
+    // 改動其一務必同步另一邊（見 CLAUDE.md 規範）。差異：本視窗永遠視為滅暗雲情境
+    // （使用者主動點選滅暗雲分頁），故一律上綠／紅底；並標示自己（★）。
+    private void DrawChaoticGrid()
+    {
+        var results = Plugin.PartyWatcher.CurrentResults;
+        if (results.Count == 0)
+        {
+            ImGui.TextColored(Dim, "目前沒有隊伍成員。請進入隊伍後點「重新整理隊伍」。");
+            return;
+        }
+
+        // 圖例：綠＝未通關、紅＝已通關
+        ImGui.TextColored(Green, "■"); ImGui.SameLine(0, 2); ImGui.TextColored(Dim, "未通關");
+        ImGui.SameLine(0, 10);
+        ImGui.TextColored(Red, "■");   ImGui.SameLine(0, 2); ImGui.TextColored(Dim, "已通關");
+        ImGui.Separator();
+
+        const ImGuiTableFlags flags =
+            ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchSame;
+
+        if (!ImGui.BeginTable("##chaoticgrid", 3, flags, new Vector2(-1, 0)))
+            return;
+
+        ImGui.TableSetupColumn("##c0");
+        ImGui.TableSetupColumn("##c1");
+        ImGui.TableSetupColumn("##c2");
+
+        // 至少 8 列（聯盟 3×8）；成員超過 24 時自動增列，避免漏顯示
+        var rows      = Math.Max(8, (results.Count + 2) / 3);
+        var rowHeight = ImGui.GetTextLineHeightWithSpacing() * 2f
+                        + ImGui.GetStyle().CellPadding.Y * 2f;
+
+        for (var r = 0; r < rows; r++)
+        {
+            ImGui.TableNextRow(ImGuiTableRowFlags.None, rowHeight);
+            for (var c = 0; c < 3; c++)
+            {
+                ImGui.TableSetColumnIndex(c);
+                var idx = c * rows + r;   // 直欄填入
+                DrawCompactCell(idx < results.Count ? results[idx] : null);
+            }
+        }
+
+        ImGui.EndTable();
+    }
+
+    private static void DrawCompactCell(PartyMemberResult? member)
+    {
+        // 空格佔位
+        if (member == null ||
+            (string.IsNullOrEmpty(member.CharacterName) && !member.IsUnresolvable))
+        {
+            ImGui.TextColored(Dim, "—");
+            return;
+        }
+
+        if (member.IsUnresolvable)
+        {
+            ImGui.TableSetBgColor(ImGuiTableBgTarget.CellBg, ImGui.GetColorU32(GridNeutral));
+            ImGui.TextColored(Dim, "（未解析）");
+            return;
+        }
+
+        // 延遲補查：RankingService 較晚就緒時補上 entries
+        if (member.Entries.Count == 0 && !string.IsNullOrEmpty(member.CharacterName))
+        {
+            var fresh = Plugin.RankingService.Query(member.CharacterName);
+            if (fresh.Count > 0) { member.Entries = fresh; member.IsFound = true; }
+        }
+
+        var chaoticClear = member.Entries.FirstOrDefault(e => e.Category == "滅" && !e.IsProg);
+        var chaoticProg  = chaoticClear == null
+            ? member.Entries.FirstOrDefault(e => e.Category == "滅" && e.IsProg)
+            : null;
+        var cleared       = chaoticClear != null;
+        var isBlacklisted = Plugin.BlacklistService.IsBlacklisted(member.CharacterName);
+
+        // 底色：黑名單 > 已通關紅 > 未通關綠
+        var bg = isBlacklisted ? GridBlack : (cleared ? GridCleared : GridUncleared);
+        ImGui.TableSetBgColor(ImGuiTableBgTarget.CellBg, ImGui.GetColorU32(bg));
+
+        // 第一行：名稱（自己標 ★ 金色、黑名單紅、其餘白）
+        var nameColor = isBlacklisted ? Red : (member.IsSelf ? Gold : White);
+        ImGui.TextColored(nameColor, (member.IsSelf ? "★ " : "") + member.CharacterName);
+        if (isBlacklisted && ImGui.IsItemHovered())
+        {
+            var note = Plugin.BlacklistService.GetNote(member.CharacterName);
+            ImGui.SetTooltip(string.IsNullOrEmpty(note) ? "黑名單" : $"黑名單：{note}");
+        }
+
+        // 第二行：滅暗雲狀態（已通關排名／進度相位／其他副本資歷 badge／未通關）
+        if (cleared)
+        {
+            ImGui.TextColored(RankColor(chaoticClear!.Rank), $"#{chaoticClear.Rank}");
+        }
+        else if (chaoticProg != null)
+        {
+            ImGui.TextColored(Teal, chaoticProg.PhaseNumber > 0 ? $"P{chaoticProg.PhaseNumber}" : "進度");
+        }
+        else
+        {
+            var badge = EncounterMeta.GetBadge(member.Entries);
+            if (badge != null) ImGui.TextColored(Dim, $"{badge}✓");
+            else               ImGui.TextColored(Dim, "未通關");
+        }
     }
 
     private void DrawTable()
@@ -222,6 +344,7 @@ public class MainWindow : Window, IDisposable
     {
         "零式"  => entries.Where(e => e.Category == "零式").ToList(),
         "絕"    => entries.Where(e => e.Category == "絕").ToList(),
+        "滅"    => entries.Where(e => e.Category == "滅").ToList(),
         "極/幻" => entries.Where(e => e.Category is "極" or "幻").ToList(),
         _       => entries,
     };
@@ -232,6 +355,7 @@ public class MainWindow : Window, IDisposable
         var groups = new (string label, Vector4 color, IEnumerable<RankingEntry> rows)[]
         {
             ("絕境戰", Gold,   entries.Where(e => e.Category == "絕"  && !e.IsObsolete)),
+            ("滅暗雲", Purple, entries.Where(e => e.Category == "滅"  && !e.IsObsolete)),
             ("零式",   Teal,   entries.Where(e => e.Category == "零式" && !e.IsObsolete)),
             ("極 / 幻", Silver, entries.Where(e => e.Category is "極" or "幻" && !e.IsObsolete)),
             ("過版本", Dim,    entries.Where(e => e.IsObsolete)),

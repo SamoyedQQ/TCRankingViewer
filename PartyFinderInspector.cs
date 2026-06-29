@@ -314,19 +314,40 @@ public sealed class PartyFinderInspector : IDisposable
             return (slots, slots.Count, slots.Count);
         }
 
-        var detailed  = &agent->LastViewedListing;
-        var filled    = (int)detailed->SlotsFilled;
-        var total     = (int)detailed->TotalSlots;
-        var leaderCid = detailed->LeaderContentId;
+        var detailed   = &agent->LastViewedListing;
+        var filled     = (int)detailed->SlotsFilled;
+        var total      = (int)detailed->TotalSlots;
+        var leaderCid  = detailed->LeaderContentId;
+        var isAlliance = total > 8;   // 24 人聯盟團（A／B／C 三隊）只有此情況 total > 8
 
-        // Jobs in slot order (index 0 = leader, 1+ = members) from latest ReceiveListing
-        string[] cachedJobs = _rawJobsCache.TryGetValue(leaderCid, out var rj) ? rj : [];
+        // Jobs in slot order (index 0 = leader, 1+ = members)。
+        // 一般 8 人本沿用 Dalamud ReceiveListing 的 RawJobsPresent（含跨服快取）。
+        // 聯盟團特別處理：Dalamud RawJobsPresent 只涵蓋 8 格，對 24 人本會少報，改用 agent
+        // Detailed 的並列陣列（MemberContentIds[i] ↔ Jobs[i]）建立 cid→職業對照，交由
+        // GetJobAtSlot 以 cid fallback 取職業，避免與 RawJobsPresent 的視覺槽位索引混淆。
+        string[] cachedJobs;
+        if (isAlliance)
+        {
+            var ids  = detailed->MemberContentIds;
+            var jobs = detailed->Jobs;
+            for (var i = 0; i < ids.Length && i < jobs.Length; i++)
+            {
+                var cid = ids[i];
+                if (cid == 0) continue;
+                var ab = JobAbbrev.GetByJobId(jobs[i]);
+                if (!string.IsNullOrEmpty(ab)) _jobCache[cid] = ab;
+            }
+            cachedJobs = [];
+        }
+        else
+        {
+            cachedJobs = _rawJobsCache.TryGetValue(leaderCid, out var rj) ? rj : [];
+        }
 
-        // 校正 filled：SlotsFilled 偶爾會被遊戲記憶體殘留污染（成員離開但 count 沒更新），
-        // 此時 RawJobsPresent 反而比較準（由伺服器明確列出 listing 內每位成員的 job）。
-        // 當 cachedJobs.Length 比 filled 小，採用 cachedJobs.Length 為實際人數上限，
-        // 避免把遊戲殘留的非零 CID 誤判為「第 N 位成員」並加入解析隊伍。
-        if (cachedJobs.Length > 0 && cachedJobs.Length < filled)
+        // 校正 filled（僅一般 8 人本）：SlotsFilled 偶爾被遊戲記憶體殘留污染（成員離開但
+        // count 沒更新），此時 RawJobsPresent 較準。聯盟團不套用此校正——RawJobsPresent
+        // 只有 8 格，會把實際 17 人誤砍成 8（即「人數鎖在 8 人」），故直接信任 SlotsFilled。
+        if (!isAlliance && cachedJobs.Length > 0 && cachedJobs.Length < filled)
         {
             Plugin.Log.Debug(
                 $"[PFInspector] SlotsFilled={filled} 但 RawJobsPresent 只有 {cachedJobs.Length} 人，" +
@@ -461,6 +482,9 @@ public sealed class PartyFinderInspector : IDisposable
             var row = Plugin.DataManager
                 .GetExcelSheet<Lumina.Excel.Sheets.ContentFinderCondition>()
                 .GetRow(rawDuty);
+            // 滅 Chaotic 聯盟團優先以副本名判定：其 ContentType 可能與一般 Raid 重疊，
+            // 名稱比對（黑暗之雲 / 暗之雲）較可靠，故置於 ContentType switch 之前
+            if (EncounterMeta.IsChaoticDutyName(row.Name.ToString())) return "滅";
             return row.ContentType.RowId switch
             {
                 28     => "絕",
