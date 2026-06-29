@@ -215,7 +215,8 @@ public class MainWindow : Window, IDisposable
         }
         else if (chaoticProg != null)
         {
-            ImGui.TextColored(Teal, chaoticProg.PhaseNumber > 0 ? $"P{chaoticProg.PhaseNumber}" : "進度");
+            var cpl = !string.IsNullOrEmpty(chaoticProg.FurthestPhase) ? chaoticProg.FurthestPhase : "進度";
+            ImGui.TextColored(Teal, $"{cpl}({chaoticProg.BossPct:F1}%%)");
         }
         else
         {
@@ -396,8 +397,10 @@ public class MainWindow : Window, IDisposable
             ImGui.TableSetColumnIndex(2);
             ImGui.TextColored(Dim, ShortenBossName(e.Boss));
             ImGui.SameLine();
-            ImGui.TextColored(Teal, "未通關");
-            var progLabel = e.PhaseNumber > 0 ? $"P{e.PhaseNumber}" : "進度中";
+            // ImGui 文字以 printf 解析，字面 % 需寫成 %% 才會顯示
+            ImGui.TextColored(Teal, $"未通關(完成 {100 - e.FightPct:F1}%%)");
+            var phase     = !string.IsNullOrEmpty(e.FurthestPhase) ? e.FurthestPhase : "進度中";
+            var progLabel = $"{phase}({e.BossPct:F1}%%)";
             ImGui.TableSetColumnIndex(3); ImGui.TextColored(Teal, progLabel);
             ImGui.TableSetColumnIndex(4); ImGui.TextColored(Dim, "─");
             ImGui.TableSetColumnIndex(5); ImGui.TextColored(Dim, "─");

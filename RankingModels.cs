@@ -12,6 +12,8 @@ public class RankingEntry
     public bool   IsProg        { get; set; }   // 未通關進度條目
     public string FurthestPhase { get; set; } = "";  // 最遠相位中文名（IsProg 時使用）
     public int    PhaseNumber   { get; set; }        // 最遠相位序號（IsProg 時使用，用於顯示 P2 等）
+    public double FightPct      { get; set; }   // IsProg：FFLogs 戰鬥剩餘%（完成% = 100 − 此值）
+    public double BossPct       { get; set; }   // IsProg：當前最遠相位 boss 剩餘血量%
     public string Job           { get; set; } = "";
     public string PlayerName    { get; set; } = "";
     public double Dps           { get; set; }
@@ -32,6 +34,8 @@ public class KantaiEncounterInfo
     [JsonPropertyName("key")]      public string Key      { get; set; } = "";
     [JsonPropertyName("name")]     public string Name     { get; set; } = "";
     [JsonPropertyName("category")] public string Category { get; set; } = "";
+    // 有此欄位（非空）代表該副本提供「最遠進度」資料；零式/絕/滅有，極/幻無
+    [JsonPropertyName("progress_path")] public string? ProgressPath { get; set; }
 }
 
 // ─── Kantai235 rankings/{key}.json ────────────────────────────────────────────
@@ -56,6 +60,24 @@ public class KantaiRankingEntry
     [JsonPropertyName("rdps")]               public double Rdps             { get; set; }
     [JsonPropertyName("adps")]               public double Adps             { get; set; }
     [JsonPropertyName("clear_time_seconds")] public double ClearTimeSeconds { get; set; }
+}
+
+// ─── progress/{key}.json（最遠進度，未通關玩家）──────────────────────────────
+public class KantaiProgressFile
+{
+    [JsonPropertyName("encounter")]        public KantaiEncounterDetail?     Encounter { get; set; }
+    [JsonPropertyName("progress_entries")] public List<KantaiProgressEntry>? Entries   { get; set; }
+}
+
+public class KantaiProgressEntry
+{
+    [JsonPropertyName("character_name")]   public string CharacterName   { get; set; } = "";
+    [JsonPropertyName("job")]              public string Job             { get; set; } = "";
+    // FFLogs lastPhaseAsAbsoluteIndex，各副本基準不一（見 EncounterMeta.ProgPhaseLabel 對照）
+    [JsonPropertyName("phase_index")]      public int    PhaseIndex      { get; set; }
+    [JsonPropertyName("boss_percentage")]  public double BossPercentage  { get; set; }
+    [JsonPropertyName("fight_percentage")] public double FightPercentage { get; set; }
+    [JsonPropertyName("pull_count")]       public int    PullCount       { get; set; }
 }
 
 // ─── 副本元資料（名稱對照、類別分組、badge 優先級）───────────────────────────
@@ -89,11 +111,61 @@ public static class EncounterMeta
         ("白虎",     "幻白虎"),
     ];
 
+    // 副本 key → 插件沿用的精簡名稱。
+    // 新資料源名稱過長（如「阿卡狄亞零式登天鬥技場 輕量級4 M4S」），且部分用字與
+    // BadgePriority / 摺疊比對所依賴的 fragment 不符（例：絕伊甸新名「光暗未來殲滅戰」
+    // 不含「伊甸」、會導致 badge 與排序失效）。以 key 對照回舊名同時解決過長與比對問題。
+    private static readonly Dictionary<string, string> CanonicalNames =
+        new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["savage_m1s"]                 = "零式 M1S / 黑貓",
+        ["savage_m2s"]                 = "零式 M2S / 蜂蜂小甜心",
+        ["savage_m3s"]                 = "零式 M3S / 野蠻炸彈",
+        ["savage_m4s"]                 = "零式 M4S / 狡雷",
+        ["extreme_valigarmanda"]       = "極 豔翼蛇鳥",
+        ["extreme_zoraal_ja"]          = "極 佐拉加",
+        ["extreme_queen_eternal"]      = "極 永恆女王",
+        ["unreal_byakko"]              = "幻 白虎",
+        ["chaotic_cloud_of_darkness"]  = "滅 黑暗之雲",
+        ["ultimate_bahamut"]           = "絕 巴哈姆特",
+        ["ultimate_ultima_weapon"]     = "絕 究極神兵",
+        ["ultimate_alexander"]         = "絕 亞歷山大",
+        ["ultimate_dragonsong"]        = "絕 龍詩戰爭",
+        ["ultimate_omega"]             = "絕 歐米茄",
+        ["ultimate_futures_rewritten"] = "絕 伊甸",
+    };
+
+    // 以 key 優先取精簡名稱；未對照的 key 退回名稱字串覆寫表
+    public static string DisplayBossName(string key, string name)
+        => CanonicalNames.TryGetValue(key, out var c) ? c : NormalizeBossName(name);
+
     public static string NormalizeBossName(string name)
         => KantaiNameOverrides.TryGetValue(name, out var n) ? n : name;
 
     public static bool IsObsoleteKey(string key)
         => ObsoleteKeys.Contains(key);
+
+    // 練習進度階段對照（key = encounter key，內層 key = FFLogs lastPhaseAsAbsoluteIndex）。
+    // ⚠️ 索引基準逐本不一（FFLogs 對不同本的起算與是否把中場算進 index 都不同），
+    // 以上游資料站校準後的對照表為準，不可套同一公式。零式視為單階段（無此 key）。
+    private static readonly Dictionary<string, Dictionary<int, string>> ProgPhases = new()
+    {
+        ["ultimate_futures_rewritten"] = new() { [0] = "P1", [1] = "P2", [2] = "P3", [3] = "P4", [4] = "P5" },
+        ["ultimate_dragonsong"]        = new() { [0] = "P1", [1] = "P2", [2] = "P3", [3] = "P4", [4] = "間奏", [5] = "P5", [6] = "P6", [7] = "P7" },
+        ["ultimate_omega"]             = new() { [0] = "P1", [1] = "P2", [2] = "P3", [3] = "P4", [4] = "P5", [5] = "P6" },
+        ["ultimate_alexander"]         = new() { [0] = "P1", [1] = "間奏", [2] = "P2", [3] = "間奏", [4] = "P3", [5] = "P4" },
+        ["ultimate_ultima_weapon"]     = new() { [0] = "P1", [1] = "P2", [2] = "P3", [3] = "間奏", [4] = "P4" },
+        ["chaotic_cloud_of_darkness"]  = new() { [1] = "P1", [2] = "間奏", [3] = "P2", [4] = "間奏", [5] = "P3" },
+    };
+
+    // phase_index → 顯示用相位標籤。查無對照且 index>0 → 誠實顯示「第 N 階段」；
+    // index ≤ 0（零式等單階段）→ 回空字串，呼叫端改顯示「進度中」。
+    public static string ProgPhaseLabel(string encKey, int phaseIndex)
+    {
+        if (ProgPhases.TryGetValue(encKey, out var m) && m.TryGetValue(phaseIndex, out var label))
+            return label;
+        return phaseIndex > 0 ? $"第 {phaseIndex} 階段" : "";
+    }
 
     // 從 ContentFinderCondition 副本名稱推導 BadgePriority fragment（用於摺疊時優先顯示當前副本）
     public static string? GetBossFragmentForDutyName(string dutyName)
@@ -102,6 +174,11 @@ public static class EncounterMeta
         foreach (var (fragment, _) in BadgePriority)
             if (dutyName.Contains(fragment, StringComparison.OrdinalIgnoreCase))
                 return fragment;
+        // 絕本：遊戲內官方副本名與 BadgePriority fragment 用字不一致者明確對照。
+        // 例：絕伊甸遊戲內為「絕 光暗未來殲滅戰」，不含「伊甸」→ 上面迴圈無法命中，
+        // 會導致招募視窗摺疊時改顯示玩家其他清板而非當前副本進度（最遠進度看不到）。
+        if (dutyName.Contains("光暗未來", StringComparison.OrdinalIgnoreCase)) return "伊甸";     // 絕 光暗未來殲滅戰 (FRU)
+        if (dutyName.Contains("龍詩",     StringComparison.OrdinalIgnoreCase)) return "龍詩戰爭"; // 絕 幻想龍詩戰爭 (DSR)
         // 滅 Chaotic 聯盟團：TC 副本名可能用「暗之雲」而非完整「黑暗之雲」，
         // 故 BadgePriority 迴圈的「黑暗之雲」fragment 不一定命中，這裡補寬鬆比對
         if (IsChaoticDutyName(dutyName)) return "黑暗之雲";

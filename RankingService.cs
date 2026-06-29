@@ -101,7 +101,7 @@ public class RankingService : IDisposable
             foreach (var file in rankingFiles)
             {
                 if (file?.Entries == null || file.Encounter == null) continue;
-                var bossName   = EncounterMeta.NormalizeBossName(file.Encounter.Name);
+                var bossName   = EncounterMeta.DisplayBossName(file.Encounter.Key, file.Encounter.Name);
                 var category   = file.Encounter.Category;
                 var isObsolete = EncounterMeta.IsObsoleteKey(file.Encounter.Key);
 
@@ -130,6 +130,51 @@ public class RankingService : IDisposable
                         });
                     }
                 }
+            }
+
+            // ─── 最遠進度（未通關玩家）────────────────────────────────────────
+            // 僅零式/絕/滅提供 progress 資料（encounters 帶 progress_path 者）。
+            var progressKeys = ParseProgressKeys(encountersJson);
+            if (progressKeys.Count > 0)
+            {
+                var progressFiles = await Task.WhenAll(
+                    progressKeys.Select(k => DownloadProgressFile(licenseKey, k)));
+
+                foreach (var file in progressFiles)
+                {
+                    if (file?.Entries == null || file.Encounter == null) continue;
+                    var encKey     = file.Encounter.Key;
+                    var bossName   = EncounterMeta.DisplayBossName(encKey, file.Encounter.Name);
+                    var category   = file.Encounter.Category;
+                    var isObsolete = EncounterMeta.IsObsoleteKey(encKey);
+
+                    foreach (var p in file.Entries)
+                    {
+                        if (string.IsNullOrWhiteSpace(p.CharacterName)) continue;
+                        allEntries.Add(new RankingEntry
+                        {
+                            Boss          = bossName,
+                            Category      = category,
+                            IsObsolete    = isObsolete,
+                            IsProg        = true,
+                            FurthestPhase = EncounterMeta.ProgPhaseLabel(encKey, p.PhaseIndex),
+                            PhaseNumber   = p.PhaseIndex,
+                            FightPct      = p.FightPercentage,
+                            BossPct       = p.BossPercentage,
+                            Job           = p.Job,
+                            PlayerName    = p.CharacterName,
+                        });
+                    }
+                }
+
+                // 同一玩家同一 boss 若已有清板紀錄，移除其練習條目
+                // （避免上游 progress 仍保留已通關者的最遠進度而出現「已過卻顯示練習中」）
+                var clearedSet = allEntries
+                    .Where(e => !e.IsProg)
+                    .Select(e => (Name: e.PlayerName.ToLowerInvariant(), e.Boss))
+                    .ToHashSet();
+                allEntries.RemoveAll(e => e.IsProg &&
+                    clearedSet.Contains((e.PlayerName.ToLowerInvariant(), e.Boss)));
             }
 
             _index       = BuildIndex(allEntries);
@@ -190,6 +235,37 @@ public class RankingService : IDisposable
         catch (Exception ex)
         {
             Plugin.Log.Warning($"[TCRanking] 無法下載 /rankings/{key}: {ex.Message}");
+            return null;
+        }
+    }
+
+    // ─── encounters.json 取出「有最遠進度資料」的副本 key（progress_path 非空）──
+    private static List<string> ParseProgressKeys(string json)
+    {
+        List<KantaiEncounterInfo>? list = null;
+        try { list = JsonSerializer.Deserialize<KantaiEncountersRoot>(json, JsonOpts)?.Encounters; }
+        catch { /* fallback */ }
+        if (list == null || list.Count == 0)
+            try { list = JsonSerializer.Deserialize<List<KantaiEncounterInfo>>(json, JsonOpts); }
+            catch { /* give up */ }
+
+        return list?
+            .Where(e => !string.IsNullOrEmpty(e.Key) && !string.IsNullOrEmpty(e.ProgressPath))
+            .Select(e => e.Key)
+            .ToList() ?? [];
+    }
+
+    // ─── 下載單一副本進度檔（失敗時記錄 warning 並回傳 null）───────────────
+    private async Task<KantaiProgressFile?> DownloadProgressFile(string licenseKey, string key)
+    {
+        try
+        {
+            var json = await GetWithAuthAsync(licenseKey, $"/progress/{key}");
+            return JsonSerializer.Deserialize<KantaiProgressFile>(json, JsonOpts);
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Warning($"[TCRanking] 無法下載 /progress/{key}: {ex.Message}");
             return null;
         }
     }
