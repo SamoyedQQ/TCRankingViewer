@@ -598,7 +598,7 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
             ImGui.TextColored(Dim, ShortenBossName(e.Boss));
             ImGui.SameLine();
             // ImGui 文字以 printf 解析，字面 % 需寫成 %% 才會顯示
-            ImGui.TextColored(Teal, $"未通關(完成 {100 - e.FightPct:F1}%%)");
+            ImGui.TextColored(Teal, $"完成 {100 - e.FightPct:F1}%%");
             var phase     = !string.IsNullOrEmpty(e.FurthestPhase) ? e.FurthestPhase : "進度中";
             var progLabel = $"{phase}({e.BossPct:F1}%%)";
             ImGui.TableSetColumnIndex(4); ImGui.TextColored(Teal, progLabel);
