@@ -123,6 +123,7 @@ public class RankingService : IDisposable
                             IsObsolete    = isObsolete,
                             Job           = e.Job,
                             PlayerName    = e.CharacterName,
+                            Server        = e.Server,
                             Dps           = e.Dps,
                             Rdps          = e.Rdps,
                             Adps          = e.Adps,
@@ -163,6 +164,7 @@ public class RankingService : IDisposable
                             BossPct       = p.BossPercentage,
                             Job           = p.Job,
                             PlayerName    = p.CharacterName,
+                            Server        = p.Server,
                         });
                     }
                 }
@@ -286,10 +288,38 @@ public class RankingService : IDisposable
     }
 
     // ─── 查詢 ──────────────────────────────────────────────────────────────
-    public List<RankingEntry> Query(string characterName)
+    // 「名稱＋伺服器」一起比對，避免同名跨服玩家被誤匹配（顯示成別人的成績／進度）。
+    public List<RankingEntry> Query(string characterName, string? world = null)
     {
         var key = characterName.ToLowerInvariant();
-        return _index.TryGetValue(key, out var list) ? list : [];
+        if (!_index.TryGetValue(key, out var list)) return [];
+
+        // 過渡期保護：資料尚無 server 欄位（KV 未更新）→ 無從比對，回傳全部
+        if (list.All(e => string.IsNullOrEmpty(e.Server))) return list;
+
+        // world 已知（CharaCard 解析）→ 精準比對伺服器
+        if (!string.IsNullOrEmpty(world))
+            return list
+                .Where(e => string.Equals(e.Server, world, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+        // world 未知（NameCache 成員拿不到伺服器）→ 回傳 best-guess（全部）；
+        // 是否同名跨服由 IsCrossServerAmbiguous 另外判斷，UI 以名字旁驚嘆號提示「僅供參考」，
+        // 而非隱藏資料。
+        return list;
+    }
+
+    // 同名是否橫跨多個伺服器：world 未知時用來判斷「無法確定是哪位」，
+    // UI 據此顯示驚嘆號（而非當成單純無紀錄）。
+    public bool IsCrossServerAmbiguous(string characterName)
+    {
+        var key = characterName.ToLowerInvariant();
+        if (!_index.TryGetValue(key, out var list)) return false;
+        return list
+            .Select(e => e.Server)
+            .Where(s => !string.IsNullOrEmpty(s))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count() > 1;
     }
 
     // ─── Server sync：CID 快取 ────────────────────────────────────────────────

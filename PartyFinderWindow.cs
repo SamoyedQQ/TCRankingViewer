@@ -242,9 +242,9 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
 
         ImGui.TableSetupScrollFreeze(0, 1);
         ImGui.TableSetupColumn("玩家",  ImGuiTableColumnFlags.WidthStretch, 2.5f);
-        ImGui.TableSetupColumn("現職",  ImGuiTableColumnFlags.WidthFixed,   48f);
-        ImGui.TableSetupColumn("職業",  ImGuiTableColumnFlags.WidthFixed,   48f);
-        ImGui.TableSetupColumn("副本",  ImGuiTableColumnFlags.WidthStretch, 2.0f);
+        ImGui.TableSetupColumn("現職",  ImGuiTableColumnFlags.WidthFixed,   44f);
+        ImGui.TableSetupColumn("職業",  ImGuiTableColumnFlags.WidthFixed,   44f);
+        ImGui.TableSetupColumn("副本",  ImGuiTableColumnFlags.WidthStretch, 2.8f);
         ImGui.TableSetupColumn("排名",  ImGuiTableColumnFlags.WidthFixed,   55f);
         ImGui.TableSetupColumn("rDPS", ImGuiTableColumnFlags.WidthFixed,   68f);
         ImGui.TableSetupColumn("aDPS", ImGuiTableColumnFlags.WidthFixed,   68f);
@@ -275,9 +275,9 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
 
         ImGui.TableSetupScrollFreeze(0, 1);
         ImGui.TableSetupColumn("玩家",  ImGuiTableColumnFlags.WidthStretch, 2.5f);
-        ImGui.TableSetupColumn("現職",  ImGuiTableColumnFlags.WidthFixed,   48f);
-        ImGui.TableSetupColumn("職業",  ImGuiTableColumnFlags.WidthFixed,   48f);
-        ImGui.TableSetupColumn("副本",  ImGuiTableColumnFlags.WidthStretch, 2.0f);
+        ImGui.TableSetupColumn("現職",  ImGuiTableColumnFlags.WidthFixed,   44f);
+        ImGui.TableSetupColumn("職業",  ImGuiTableColumnFlags.WidthFixed,   44f);
+        ImGui.TableSetupColumn("副本",  ImGuiTableColumnFlags.WidthStretch, 2.8f);
         ImGui.TableSetupColumn("排名",  ImGuiTableColumnFlags.WidthFixed,   55f);
         ImGui.TableSetupColumn("rDPS", ImGuiTableColumnFlags.WidthFixed,   68f);
         ImGui.TableSetupColumn("aDPS", ImGuiTableColumnFlags.WidthFixed,   68f);
@@ -305,12 +305,15 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
             // 為空就再查一次（純 dictionary lookup，O(1)），撈到資料就補上。
             if (member.Entries.Count == 0 && !string.IsNullOrEmpty(member.CharacterName))
             {
-                var fresh = Plugin.RankingService.Query(member.CharacterName);
+                var fresh = Plugin.RankingService.Query(member.CharacterName, member.WorldName);
                 if (fresh.Count > 0)
                 {
                     member.Entries = fresh;
                     member.IsFound = true;
                 }
+                else if (string.IsNullOrEmpty(member.WorldName))
+                    member.AmbiguousCrossServer =
+                        Plugin.RankingService.IsCrossServerAmbiguous(member.CharacterName);
             }
 
             var filtered     = FilterEntries(member.Entries);
@@ -350,6 +353,18 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
 
             var isBlacklisted = Plugin.BlacklistService.IsBlacklisted(member.CharacterName);
             ImGui.TextColored(isBlacklisted ? Red : White, member.CharacterName);
+            if (!string.IsNullOrEmpty(member.WorldName))
+            {
+                ImGui.SameLine(0, 3);
+                ImGui.TextColored(Dim, $"@{member.WorldName}");
+            }
+            if (member.AmbiguousCrossServer)
+            {
+                ImGui.SameLine(0, 3);
+                ImGui.TextColored(Gold, "！");
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip("存在多個跨伺服器同名玩家，僅供參考");
+            }
 
             // 從全部 entries 選最高優先 badge，不受篩選影響
             var badge = EncounterMeta.GetBadge(member.Entries);
@@ -424,10 +439,10 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
     private void DrawCompactGrid(IReadOnlyList<PartyMemberResult> results)
     {
         var filled      = Plugin.PartyFinderInspector.SlotsFilled;
-        // 綠底僅在「當前副本確實是滅暗雲」時啟用（滅暗雲有初通關額外獎勵，
-        // 招募者藉此一眼看出誰尚未通關）。非滅暗雲的 24 人本僅顯示成員，不上綠底。
-        var chaoticDuty = EncounterMeta.IsChaoticDutyName(
-            Plugin.PartyFinderInspector.CurrentDutyName);
+        // 紅綠底綁定「目前正在看滅暗雲分頁」而非招募的副本名稱：
+        // 練習/自訂招募常把副本欄設成非滅暗雲的 CFC（IsChaoticDutyName 會失敗），
+        // 但使用者既然停在滅暗雲分頁、且精簡格只在此分頁出現，就一律套用通關紅綠底。
+        var chaoticDuty = _categoryFilter == "滅";
 
         // 標題列：人數 + 圖例（綠＝未通關／首通目標，紅＝已通關）
         ImGui.TextColored(Dim, $"隊伍 {filled}/24 人");
@@ -497,8 +512,11 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
         // 延遲補查（同 DrawTable）：RankingService 較晚就緒時補上 entries
         if (member.Entries.Count == 0 && !string.IsNullOrEmpty(member.CharacterName))
         {
-            var fresh = Plugin.RankingService.Query(member.CharacterName);
+            var fresh = Plugin.RankingService.Query(member.CharacterName, member.WorldName);
             if (fresh.Count > 0) { member.Entries = fresh; member.IsFound = true; }
+            else if (string.IsNullOrEmpty(member.WorldName))
+                member.AmbiguousCrossServer =
+                    Plugin.RankingService.IsCrossServerAmbiguous(member.CharacterName);
         }
 
         var chaoticClear = member.Entries.FirstOrDefault(e => e.Category == "滅" && !e.IsProg);
@@ -516,12 +534,25 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
         else                              bg = GridNeutral;    // 非滅暗雲本
         ImGui.TableSetBgColor(ImGuiTableBgTarget.CellBg, ImGui.GetColorU32(bg));
 
-        // 第一行：名稱（底色已表達通關狀態，名稱僅黑名單標紅）
+        // 第一行：名稱 + @伺服器（底色已表達通關狀態，名稱僅黑名單標紅）
+        // 顯示伺服器是為了讓使用者確認匹配到的是「同名同服」的正確玩家，非跨服同名者
         ImGui.TextColored(isBlacklisted ? Red : White, member.CharacterName);
         if (isBlacklisted && ImGui.IsItemHovered())
         {
             var note = Plugin.BlacklistService.GetNote(member.CharacterName);
             ImGui.SetTooltip(string.IsNullOrEmpty(note) ? "黑名單" : $"黑名單：{note}");
+        }
+        if (!string.IsNullOrEmpty(member.WorldName))
+        {
+            ImGui.SameLine(0, 3);
+            ImGui.TextColored(Dim, $"@{member.WorldName}");
+        }
+        if (member.AmbiguousCrossServer)
+        {
+            ImGui.SameLine(0, 3);
+            ImGui.TextColored(Gold, "！");
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("存在多個跨伺服器同名玩家，僅供參考");
         }
 
         // 第二行：現職 + 滅暗雲狀態

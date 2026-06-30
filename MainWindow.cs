@@ -184,7 +184,7 @@ public class MainWindow : Window, IDisposable
         // 延遲補查：RankingService 較晚就緒時補上 entries
         if (member.Entries.Count == 0 && !string.IsNullOrEmpty(member.CharacterName))
         {
-            var fresh = Plugin.RankingService.Query(member.CharacterName);
+            var fresh = Plugin.RankingService.Query(member.CharacterName, member.WorldName);
             if (fresh.Count > 0) { member.Entries = fresh; member.IsFound = true; }
         }
 

@@ -166,20 +166,30 @@ public sealed class PartyFinderInspector : IDisposable
 
         // Build _staged in slot order; unknown CIDs get empty placeholders replaced by CharaCard results
         var fresh        = new List<PartyMemberResult>(slots.Count);
-        var unknownSlots = new List<(int idx, ulong cid, string job)>();
+        // knownName != null：已具名但同名跨服 → 需 CharaCard 補 world 後精準比對
+        var unknownSlots = new List<(int idx, ulong cid, string job, string? knownName)>();
 
         for (var i = 0; i < slots.Count; i++)
         {
             var (name, job, cid) = slots[i];
             if (name != null)
             {
-                var entries = Plugin.RankingService.Query(name);
+                // NameCache 解析的成員拿不到 world（遊戲 ContentId 快取只有名字、無伺服器）
+                var entries   = Plugin.RankingService.Query(name);   // best-guess
+                var ambiguous = Plugin.RankingService.IsCrossServerAmbiguous(name);
+                if (ambiguous && cid != 0)
+                {
+                    // 同名跨服 → 只對這少數人排程 CharaCard 補 world 後精準比對（不全員開卡）。
+                    // 先顯示 best-guess 資料 + 名字旁 ！；CharaCard 成功會覆寫為精準結果並移除 ！
+                    unknownSlots.Add((i, cid, job, name));
+                }
                 fresh.Add(new PartyMemberResult
                 {
-                    CharacterName = name,
-                    CurrentJob    = job,
-                    IsFound       = entries.Count > 0,
-                    Entries       = entries,
+                    CharacterName        = name,
+                    CurrentJob           = job,
+                    IsFound              = entries.Count > 0,
+                    Entries              = entries,
+                    AmbiguousCrossServer = ambiguous,
                 });
             }
             else if (cid == 0)
@@ -189,7 +199,7 @@ public sealed class PartyFinderInspector : IDisposable
             else
             {
                 fresh.Add(new PartyMemberResult()); // placeholder — replaced by CharaCard
-                unknownSlots.Add((i, cid, job));
+                unknownSlots.Add((i, cid, job, null));
             }
         }
 
@@ -222,9 +232,9 @@ public sealed class PartyFinderInspector : IDisposable
     // 注意：此方法被取消時必須跳過 _pendingLookups 的遞減，否則會污染新批次的計數
     // 並導致新批次 _staged 內未處理完的 placeholder 被誤發布為「空名字 + 無紀錄」列
     private async Task LookupUnknownNamesAsync(
-        List<(int idx, ulong cid, string job)> unknownSlots, CancellationToken ct)
+        List<(int idx, ulong cid, string job, string? knownName)> unknownSlots, CancellationToken ct)
     {
-        foreach (var (idx, cid, preJob) in unknownSlots)
+        foreach (var (idx, cid, preJob, knownName) in unknownSlots)
         {
             if (ct.IsCancellationRequested) return;
 
@@ -236,7 +246,9 @@ public sealed class PartyFinderInspector : IDisposable
 
                 if (!string.IsNullOrEmpty(result.Name))
                 {
-                    var entries = Plugin.RankingService.Query(result.Name);
+                    // CharaCard 帶回 WorldId → 解析伺服器名，查詢時一起比對避免同名跨服誤匹配
+                    var world   = PartyWatcher.ResolveWorldName(result.WorldId) ?? "";
+                    var entries = Plugin.RankingService.Query(result.Name, world);
                     // Prefer slot-cached job; fall back to CharaCard ClassJobId
                     var job = !string.IsNullOrEmpty(preJob) ? preJob
                         : result.ClassJobId != 0 ? JobAbbrev.GetByJobId(result.ClassJobId)
@@ -244,6 +256,7 @@ public sealed class PartyFinderInspector : IDisposable
                     pmr = new PartyMemberResult
                     {
                         CharacterName = result.Name,
+                        WorldName     = world,
                         CurrentJob    = job,
                         IsFound       = entries.Count > 0,
                         Entries       = entries,
@@ -253,7 +266,11 @@ public sealed class PartyFinderInspector : IDisposable
                 }
                 else
                 {
-                    pmr = new PartyMemberResult { IsUnresolvable = true };
+                    // 已具名（同名跨服）但 CharaCard 補 world 失敗 → 保留名稱 + 驚嘆號提示，
+                    // 而非當成完全無法解析；純未知名才標 IsUnresolvable
+                    pmr = !string.IsNullOrEmpty(knownName)
+                        ? new PartyMemberResult { CharacterName = knownName, CurrentJob = preJob, AmbiguousCrossServer = true }
+                        : new PartyMemberResult { IsUnresolvable = true };
                     Plugin.Log.Debug($"[PFInspector] CharaCard 無法解析 {cid:X16}，加入佔位列");
                 }
             }
@@ -263,7 +280,9 @@ public sealed class PartyFinderInspector : IDisposable
                 Plugin.Log.Warning(ex,
                     $"[PFInspector] CharaCard 查詢失敗 {cid:X16}");
                 // 查詢失敗也要寫回 _staged，避免遺留空 placeholder 被誤發布為「空名字 + 無紀錄」列
-                pmr = new PartyMemberResult { IsUnresolvable = true };
+                pmr = !string.IsNullOrEmpty(knownName)
+                    ? AmbiguousFallback(knownName!, preJob)
+                    : new PartyMemberResult { IsUnresolvable = true };
             }
 
             // 寫回 _staged 與遞減計數都要在「未被取消」時才執行，否則會影響新批次
@@ -287,6 +306,20 @@ public sealed class PartyFinderInspector : IDisposable
                 Plugin.Log.Debug("[PFInspector] 所有查詢完成，發布結果");
             }
         }
+    }
+
+    // 同名跨服但 CharaCard 補 world 失敗 → 保留名稱 + best-guess 資料 + ！ 提示
+    private static PartyMemberResult AmbiguousFallback(string knownName, string job)
+    {
+        var entries = Plugin.RankingService.Query(knownName);
+        return new PartyMemberResult
+        {
+            CharacterName        = knownName,
+            CurrentJob           = job,
+            Entries              = entries,
+            IsFound              = entries.Count > 0,
+            AmbiguousCrossServer = true,
+        };
     }
 
     private void CancelPendingLookups()

@@ -19,7 +19,7 @@ public sealed class CharaCardLookup : IDisposable
 
     private delegate void PacketDelegate(nint self, nint packet, byte a3);
 
-    public readonly record struct CharaCardResult(string? Name, byte ClassJobId);
+    public readonly record struct CharaCardResult(string? Name, byte ClassJobId, ushort WorldId);
 
     private readonly Hook<PacketDelegate> _hook;
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -199,12 +199,13 @@ public sealed class CharaCardLookup : IDisposable
 
             if (cid == 0 || cid != mine) return; // not our packet
 
-            var name  = self->Data->Name.ToString();
-            var jobId = self->Data->ClassJobId;
-            Plugin.Log.Debug($"[CharaCardLookup] match! name={name} jobId={jobId}");
+            var name   = self->Data->Name.ToString();
+            var jobId  = self->Data->ClassJobId;
+            var worldId = self->Data->WorldId;
+            Plugin.Log.Debug($"[CharaCardLookup] match! name={name} jobId={jobId} world={worldId}");
 
             Volatile.Read(ref _tcs)?.TrySetResult(new CharaCardResult(
-                string.IsNullOrEmpty(name) ? null : name, jobId));
+                string.IsNullOrEmpty(name) ? null : name, jobId, worldId));
             // No deadline arithmetic here. _pendingCid is still set (RequestAsync's
             // finally hasn't run yet), so OnFrameworkUpdate keeps hiding the addon.
             // Once the finally runs, _cleanupUntil takes over for the tail.

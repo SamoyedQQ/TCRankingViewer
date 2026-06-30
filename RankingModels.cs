@@ -16,6 +16,7 @@ public class RankingEntry
     public double BossPct       { get; set; }   // IsProg：當前最遠相位 boss 剩餘血量%
     public string Job           { get; set; } = "";
     public string PlayerName    { get; set; } = "";
+    public string Server        { get; set; } = "";  // 伺服器（World）名稱，供「名稱＋伺服器」精準匹配
     public double Dps           { get; set; }
     public double Rdps          { get; set; }
     public double Adps          { get; set; }
@@ -55,6 +56,7 @@ public class KantaiRankingFile
 public class KantaiRankingEntry
 {
     [JsonPropertyName("character_name")]     public string CharacterName    { get; set; } = "";
+    [JsonPropertyName("server")]             public string Server           { get; set; } = "";
     [JsonPropertyName("job")]                public string Job              { get; set; } = "";
     [JsonPropertyName("dps")]                public double Dps              { get; set; }
     [JsonPropertyName("rdps")]               public double Rdps             { get; set; }
@@ -72,6 +74,7 @@ public class KantaiProgressFile
 public class KantaiProgressEntry
 {
     [JsonPropertyName("character_name")]   public string CharacterName   { get; set; } = "";
+    [JsonPropertyName("server")]           public string Server          { get; set; } = "";
     [JsonPropertyName("job")]              public string Job             { get; set; } = "";
     // FFLogs lastPhaseAsAbsoluteIndex，各副本基準不一（見 EncounterMeta.ProgPhaseLabel 對照）
     [JsonPropertyName("phase_index")]      public int    PhaseIndex      { get; set; }
@@ -307,6 +310,9 @@ public class PartyMemberResult
     public bool   IsSelf         { get; set; }
     public bool   IsFound        { get; set; }
     public bool   IsUnresolvable { get; set; }
+    // 同名橫跨多個伺服器、又拿不到此成員的 world（NameCache 解析）→ 無法確定是哪位。
+    // 此時不顯示成績（以免張冠李戴），UI 改顯示驚嘆號提醒「僅供參考」。
+    public bool   AmbiguousCrossServer { get; set; }
     public List<RankingEntry> Entries { get; set; } = [];
 
     public RankingEntry? BestEntry =>

@@ -71,7 +71,8 @@ public class PartyWatcher : IDisposable
     }
 
     // 將 WorldId 轉成 World 名稱；查不到回 null（避免污染 meta）
-    private static string? ResolveWorldName(uint worldId)
+    // public：PartyFinderInspector 也需用 CharaCard 的 WorldId 解析伺服器名供「名稱＋伺服器」匹配
+    public static string? ResolveWorldName(uint worldId)
     {
         if (worldId == 0) return null;
         var sheet = Plugin.DataManager.GetExcelSheet<Lumina.Excel.Sheets.World>();
