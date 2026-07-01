@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
@@ -21,9 +23,18 @@ public class RankingService : IDisposable
     private volatile bool    _loading   = false;
     private string?          _updated;
     private DateTime         _lastFetched = DateTime.MinValue;
+    private DateTime         _lastAttempt = DateTime.MinValue;
+
+    // 硬性最小刷新間隔：即使使用者按「強制刷新」也至少間隔此秒數，避免狂按造成連續請求
+    private static readonly TimeSpan MinRefreshInterval = TimeSpan.FromSeconds(30);
 
     private readonly HttpClient    _http;
     private readonly SemaphoreSlim _sem = new(1, 1);
+
+    // 條件式請求快取：path → (ETag, Body)。伺服器排名資料每 6 小時才更新一次，
+    // 但客戶端輪詢較頻繁；帶 If-None-Match，伺服器內容未變則回 304，直接重用本機 body，
+    // 省下整包（~8 MB）重新下載。並行下載多個副本 → 用 ConcurrentDictionary 確保執行緒安全。
+    private readonly ConcurrentDictionary<string, (string ETag, string Body)> _etagCache = new();
 
     public bool    IsReady      => _index.Count > 0;
     public bool    IsLoading    => _loading;
@@ -56,20 +67,43 @@ public class RankingService : IDisposable
     {
         using var req = new HttpRequestMessage(HttpMethod.Get, $"{WorkerBaseUrl}{path}");
         req.Headers.TryAddWithoutValidation("Authorization", BuildHmacHeader(licenseKey, path));
+        // 帶上次的 ETag：伺服器資料未變會回 304 空 body，省下整包傳輸
+        if (_etagCache.TryGetValue(path, out var cached))
+            req.Headers.TryAddWithoutValidation("If-None-Match", cached.ETag);
+
         using var resp = await _http.SendAsync(req);
+
+        // 304 Not Modified：資料未變，重用本機快取的 body（正常情況一定有快取才會送 If-None-Match）
+        if (resp.StatusCode == HttpStatusCode.NotModified && _etagCache.TryGetValue(path, out var hit))
+            return hit.Body;
+
         resp.EnsureSuccessStatusCode();
-        return await resp.Content.ReadAsStringAsync();
+        var body = await resp.Content.ReadAsStringAsync();
+
+        // 更新快取：保存新的 ETag 與 body，供下次條件式請求比對
+        var etag = resp.Headers.ETag?.Tag;
+        if (!string.IsNullOrEmpty(etag))
+            _etagCache[path] = (etag, body);
+
+        return body;
     }
 
     // ─── 下載 / 更新 ───────────────────────────────────────────────────────
     public async Task RefreshAsync(bool force = false)
     {
+        var now = DateTime.UtcNow;
+
+        // 硬性最小間隔（連 force 也擋）：以「上次嘗試」計，失敗也算，避免失敗後被無限重試灌爆
+        if (now - _lastAttempt < MinRefreshInterval)
+            return;
+
         if (!force && IsReady &&
-            DateTime.UtcNow - _lastFetched <
+            now - _lastFetched <
             TimeSpan.FromMinutes(Plugin.Configuration.CacheRefreshMinutes))
             return;
 
         if (!await _sem.WaitAsync(0)) return;
+        _lastAttempt = DateTime.UtcNow;  // 進入實際刷新才記錄嘗試時間
 
         try
         {
