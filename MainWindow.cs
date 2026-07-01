@@ -193,7 +193,7 @@ public class MainWindow : Window, IDisposable
             ? member.Entries.FirstOrDefault(e => e.Category == "滅" && e.IsProg)
             : null;
         var cleared       = chaoticClear != null;
-        var isBlacklisted = Plugin.BlacklistService.IsBlacklisted(member.CharacterName);
+        var isBlacklisted = Plugin.BlacklistService.IsMarked(member.CharacterName);
 
         // 底色：黑名單 > 已通關紅 > 未通關綠
         var bg = isBlacklisted ? GridBlack : (cleared ? GridCleared : GridUncleared);
@@ -203,10 +203,7 @@ public class MainWindow : Window, IDisposable
         var nameColor = isBlacklisted ? Red : (member.IsSelf ? Gold : White);
         ImGui.TextColored(nameColor, (member.IsSelf ? "★ " : "") + member.CharacterName);
         if (isBlacklisted && ImGui.IsItemHovered())
-        {
-            var note = Plugin.BlacklistService.GetNote(member.CharacterName);
-            ImGui.SetTooltip(string.IsNullOrEmpty(note) ? "黑名單" : $"黑名單：{note}");
-        }
+            ImGui.SetTooltip(Plugin.BlacklistService.TooltipText(member.CharacterName));
 
         // 第二行：滅暗雲狀態（已通關排名／進度相位／其他副本資歷 badge／未通關）
         if (cleared)
@@ -286,9 +283,12 @@ public class MainWindow : Window, IDisposable
             }
             ImGui.SameLine();
 
-            var isBlacklisted = Plugin.BlacklistService.IsBlacklisted(member.CharacterName);
+            var isBlacklisted = Plugin.BlacklistService.IsMarked(member.CharacterName);
             var nameColor = isBlacklisted ? Red : (member.IsSelf ? Gold : White);
             ImGui.TextColored(nameColor, (member.IsSelf ? "★ " : "") + member.CharacterName);
+            // 黑名單改為懸浮在名字上顯示「黑名單：＂原因＂」，不再另加 Ｘ 按鈕
+            if (isBlacklisted && ImGui.IsItemHovered())
+                ImGui.SetTooltip(Plugin.BlacklistService.TooltipText(member.CharacterName));
             if (!string.IsNullOrEmpty(member.WorldName))
             {
                 ImGui.SameLine();
@@ -301,12 +301,6 @@ public class MainWindow : Window, IDisposable
             {
                 ImGui.SameLine();
                 ImGui.TextColored(Green, $"{badge}✓");
-            }
-
-            if (isBlacklisted)
-            {
-                ImGui.SameLine();
-                DrawBlacklistButton(member.CharacterName);
             }
 
             if (best == null)
@@ -411,31 +405,6 @@ public class MainWindow : Window, IDisposable
             ImGui.TableSetColumnIndex(3); ImGui.TextColored(e.IsObsolete ? Dim : RankColor(e.Rank), $"#{e.Rank}");
             ImGui.TableSetColumnIndex(4); ImGui.TextColored(e.IsObsolete ? Dim : White, $"{e.Rdps:F0}");
             ImGui.TableSetColumnIndex(5); ImGui.TextColored(Dim, $"{e.Adps:F0}");
-        }
-    }
-
-    // 黑名單 ✕ 按鈕：點擊後顯示備註 popup
-    private static void DrawBlacklistButton(string characterName)
-    {
-        var popupId = $"blnote_{characterName}";
-        ImGui.PushStyleColor(ImGuiCol.Button,        Vector4.Zero);
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.95f, 0.40f, 0.40f, 0.3f));
-        ImGui.PushStyleColor(ImGuiCol.ButtonActive,  new Vector4(0.95f, 0.40f, 0.40f, 0.5f));
-        ImGui.PushStyleColor(ImGuiCol.Text,          Red);
-        if (ImGui.SmallButton($"黑名單Ｘ##{popupId}"))
-            ImGui.OpenPopup(popupId);
-        ImGui.PopStyleColor(4);
-
-        if (ImGui.BeginPopup(popupId))
-        {
-            ImGui.TextColored(Red, characterName);
-            ImGui.Separator();
-            var note = Plugin.BlacklistService.GetNote(characterName);
-            if (!string.IsNullOrEmpty(note))
-                ImGui.TextUnformatted(note);
-            else
-                ImGui.TextColored(Dim, "（無備註）");
-            ImGui.EndPopup();
         }
     }
 

@@ -1,4 +1,7 @@
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using Dalamud.Interface.Windowing;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using ImGuiNET;
@@ -47,6 +50,14 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
     private string  _categoryFilter = "全部";
     private string? _pendingCategory;          // triggers ImGuiTabItemFlags.SetSelected on next draw
     private bool    _forceDetailView;          // 24 人本時，使用者可手動切回詳細表格
+
+    // ── 截圖狀態機 ──────────────────────────────────────────────────────────
+    // 名稱打碼與擷取需分幀：phase 1 = 本幀套用遮罩繪製並記錄範圍；
+    // phase 2 = 上一幀（遮罩）已呈現到螢幕，於本幀開頭擷取。
+    private int     _shotPhase;
+    private bool    _shotMask;    // 本次截圖是否打碼（點按當下由設定決定）
+    private bool    _maskActive;  // 繪製名稱時是否套用遮罩，供各 Draw* 讀取
+    private Vector2 _shotPos, _shotSize;
 
     // 由 PartyFinderInspector 在招募面板開啟時呼叫，自動切換到對應副本類別
     public void SetInitialCategoryFilter(string category)
@@ -97,6 +108,41 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
 
     public override void Draw()
     {
+        // 截圖狀態機（見欄位說明）：phase 2 代表上一幀（可能已打碼）已呈現 → 於本幀開頭擷取；
+        // phase 1 代表本幀為擷取前的繪製幀 → 套用遮罩並記錄視窗範圍，下一幀擷取。
+        if (_shotPhase == 2)
+        {
+            _shotPhase = 0;   // 先清狀態，確保任何失敗都不會卡在擷取迴圈
+            try { CaptureWindow(_shotPos, _shotSize); }
+            catch (Exception ex) { Plugin.Log.Warning(ex, "[TCRanking] 截圖失敗"); }
+        }
+        _maskActive = _shotPhase == 1 && _shotMask;
+        if (_shotPhase == 1)
+        {
+            var winPos  = ImGui.GetWindowPos();
+            var winSize = ImGui.GetWindowSize();
+            // 併入左側「招募資訊」(LookingForGroupDetail addon) 範圍，讓截圖同時涵蓋兩邊視窗。
+            // addon 座標與 ImGui 視窗同一 client 像素空間（PreDraw 即用它定位本視窗），故可直接取聯集。
+            if (TryGetAddonRect(out var aPos, out var aSize))
+            {
+                var minX = Math.Min(winPos.X, aPos.X);
+                var minY = Math.Min(winPos.Y, aPos.Y);
+                var maxX = Math.Max(winPos.X + winSize.X, aPos.X + aSize.X);
+                var maxY = Math.Max(winPos.Y + winSize.Y, aPos.Y + aSize.Y);
+                // addon 回報高度略多於可見視窗（底部邊框/留白），裁掉約一行高度避免露出下方聊天。
+                // 用文字行高而非寫死像素，隨字級/DPI 自動縮放。
+                maxY -= ImGui.GetTextLineHeightWithSpacing();
+                _shotPos  = new Vector2(minX, minY);
+                _shotSize = new Vector2(maxX - minX, Math.Max(1f, maxY - minY));
+            }
+            else
+            {
+                _shotPos  = winPos;
+                _shotSize = winSize;
+            }
+            _shotPhase = 2;
+        }
+
         // 24 人本（聯盟團，TotalSlots==24）在「滅暗雲」分頁套用精簡格狀；
         // 分類 tab 永遠顯示，使用者仍可切到其他分頁查看零式／絕等排名
         var is24 = Plugin.PartyFinderInspector.TotalSlots == 24;
@@ -202,7 +248,7 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
         var recruiter = Plugin.PartyFinderInspector.CurrentRecruiterName;
         if (!string.IsNullOrEmpty(recruiter))
         {
-            ImGui.TextColored(Gold, recruiter);
+            ImGui.TextColored(Gold, MaskName(recruiter));
             ImGui.SameLine();
             ImGui.TextColored(Dim, "的招募");
         }
@@ -219,8 +265,15 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
                 _forceDetailView = !_forceDetailView;
         }
 
-        // 右側按鈕從右往左排列:設定 → 刷新（先佔據右端再 SameLine 接上去)
-        ImGui.SameLine(ImGui.GetContentRegionAvail().X - 100);
+        // 右側按鈕從左到右：截圖 → 刷新 → 設定（先跳到右端起點再 SameLine 依序接上）
+        ImGui.SameLine(ImGui.GetContentRegionAvail().X - 148);
+        if (ImGui.SmallButton("截圖"))
+        {
+            // 點按當下決定是否打碼，phase 1 讓下一幀以遮罩繪製、再下一幀擷取
+            _shotMask  = Plugin.Configuration.MaskIdOnScreenshot;
+            _shotPhase = 1;
+        }
+        ImGui.SameLine();
         if (ImGui.SmallButton("刷新"))
         {
             var addonPtr = Plugin.GameGui.GetAddonByName("LookingForGroupDetail", 1);
@@ -351,8 +404,11 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
             }
             ImGui.SameLine();
 
-            var isBlacklisted = Plugin.BlacklistService.IsBlacklisted(member.CharacterName);
-            ImGui.TextColored(isBlacklisted ? Red : White, member.CharacterName);
+            var isBlacklisted = Plugin.BlacklistService.IsMarked(member.CharacterName);
+            ImGui.TextColored(isBlacklisted ? Red : White, MaskName(member.CharacterName));
+            // 黑名單改為懸浮在名字上顯示「黑名單：＂原因＂」，不再另加 Ｘ 按鈕
+            if (isBlacklisted && ImGui.IsItemHovered())
+                ImGui.SetTooltip(Plugin.BlacklistService.TooltipText(member.CharacterName));
             if (!string.IsNullOrEmpty(member.WorldName))
             {
                 ImGui.SameLine(0, 3);
@@ -372,12 +428,6 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
             {
                 ImGui.SameLine();
                 ImGui.TextColored(Green, $"{badge}✓");
-            }
-
-            if (isBlacklisted)
-            {
-                ImGui.SameLine();
-                DrawBlacklistButton(member.CharacterName);
             }
 
             // 現職欄
@@ -492,7 +542,7 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
         ImGui.EndTable();
     }
 
-    private static void DrawCompactCell(PartyMemberResult? member, bool chaoticDuty)
+    private void DrawCompactCell(PartyMemberResult? member, bool chaoticDuty)
     {
         // 空槽：留白佔位，保持格狀對齊
         if (member == null ||
@@ -524,7 +574,7 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
             ? member.Entries.FirstOrDefault(e => e.Category == "滅" && e.IsProg)
             : null;
         var cleared       = chaoticClear != null;
-        var isBlacklisted = Plugin.BlacklistService.IsBlacklisted(member.CharacterName);
+        var isBlacklisted = Plugin.BlacklistService.IsMarked(member.CharacterName);
 
         // 底色優先序：黑名單 > 已通關紅 > 未通關綠（皆限當前為滅暗雲）> 一般淡灰
         Vector4 bg;
@@ -536,12 +586,9 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
 
         // 第一行：名稱 + @伺服器（底色已表達通關狀態，名稱僅黑名單標紅）
         // 顯示伺服器是為了讓使用者確認匹配到的是「同名同服」的正確玩家，非跨服同名者
-        ImGui.TextColored(isBlacklisted ? Red : White, member.CharacterName);
+        ImGui.TextColored(isBlacklisted ? Red : White, MaskName(member.CharacterName));
         if (isBlacklisted && ImGui.IsItemHovered())
-        {
-            var note = Plugin.BlacklistService.GetNote(member.CharacterName);
-            ImGui.SetTooltip(string.IsNullOrEmpty(note) ? "黑名單" : $"黑名單：{note}");
-        }
+            ImGui.SetTooltip(Plugin.BlacklistService.TooltipText(member.CharacterName));
         if (!string.IsNullOrEmpty(member.WorldName))
         {
             ImGui.SameLine(0, 3);
@@ -645,29 +692,143 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
         }
     }
 
-    // 黑名單 ✕ 按鈕：點擊後顯示備註 popup
-    private static void DrawBlacklistButton(string characterName)
-    {
-        var popupId = $"blnote_{characterName}";
-        ImGui.PushStyleColor(ImGuiCol.Button,        Vector4.Zero);
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.95f, 0.40f, 0.40f, 0.3f));
-        ImGui.PushStyleColor(ImGuiCol.ButtonActive,  new Vector4(0.95f, 0.40f, 0.40f, 0.5f));
-        ImGui.PushStyleColor(ImGuiCol.Text,          Red);
-        if (ImGui.SmallButton($"黑名單Ｘ##{popupId}"))
-            ImGui.OpenPopup(popupId);
-        ImGui.PopStyleColor(4);
+    // 截圖打碼：遮罩期間把玩家名稱換成等長的全形星號，隱藏 ID；平時原樣回傳
+    private string MaskName(string name)
+        => _maskActive && !string.IsNullOrEmpty(name)
+            ? new string('＊', Math.Clamp(name.Length, 2, 6))
+            : name;
 
-        if (ImGui.BeginPopup(popupId))
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POINT { public int X; public int Y; }
+
+    [DllImport("user32.dll")]
+    private static extern bool ClientToScreen(nint hWnd, ref POINT lpPoint);
+
+    // 取得左側「招募資訊」視窗(addon)的 client 空間範圍，供截圖聯集使用
+    private static bool TryGetAddonRect(out Vector2 pos, out Vector2 size)
+    {
+        pos = default; size = default;
+        var addonPtr = Plugin.GameGui.GetAddonByName("LookingForGroupDetail", 1);
+        if (addonPtr == nint.Zero) return false;
+        var addon = (AtkUnitBase*)addonPtr;
+        pos  = new Vector2(addon->X, addon->Y);
+        size = new Vector2(addon->GetScaledWidth(true), addon->GetScaledHeight(true));
+        return size is { X: > 0, Y: > 0 };
+    }
+
+    // 剪貼簿 / 記憶體 Win32 API（以 CF_DIB 放入影像，免依賴 WinForms/WPF）
+    private const uint CF_DIB = 8;
+    private const uint GMEM_MOVEABLE = 0x0002;
+    [DllImport("user32.dll")]   private static extern bool OpenClipboard(nint hWndNewOwner);
+    [DllImport("user32.dll")]   private static extern bool EmptyClipboard();
+    [DllImport("user32.dll")]   private static extern nint SetClipboardData(uint uFormat, nint hMem);
+    [DllImport("user32.dll")]   private static extern bool CloseClipboard();
+    [DllImport("kernel32.dll")] private static extern nint GlobalAlloc(uint uFlags, nuint dwBytes);
+    [DllImport("kernel32.dll")] private static extern nint GlobalLock(nint hMem);
+    [DllImport("kernel32.dll")] private static extern bool GlobalUnlock(nint hMem);
+    [DllImport("kernel32.dll")] private static extern nint GlobalFree(nint hMem);
+
+    // 擷取本視窗範圍並複製到剪貼簿（不存檔）。ImGui 座標為遊戲 client 區像素，換算成桌面
+    // 座標後以 GDI 從螢幕複製（需視窗/邊框全螢幕；Dalamud overlay 本就要求非獨佔全螢幕）。
+    private static void CaptureWindow(Vector2 pos, Vector2 size)
+    {
+        try
         {
-            ImGui.TextColored(Red, characterName);
-            ImGui.Separator();
-            var note = Plugin.BlacklistService.GetNote(characterName);
-            if (!string.IsNullOrEmpty(note))
-                ImGui.TextUnformatted(note);
-            else
-                ImGui.TextColored(Dim, "（無備註）");
-            ImGui.EndPopup();
+            var w = (int)size.X;
+            var h = (int)size.Y;
+            if (w <= 0 || h <= 0) return;
+
+            var hwnd = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+            if (hwnd == nint.Zero)
+            {
+                Plugin.ChatGui.PrintError("[TCRanking] 截圖失敗：找不到遊戲視窗");
+                return;
+            }
+
+            var origin = new POINT { X = 0, Y = 0 };
+            ClientToScreen(hwnd, ref origin);
+            var sx = origin.X + (int)pos.X;
+            var sy = origin.Y + (int)pos.Y;
+
+            // 直接擷取為 24bpp（去掉 alpha，避免貼上時透明區被當成黑色）
+            byte[] dib;
+            using (var bmp = new Bitmap(w, h, PixelFormat.Format24bppRgb))
+            {
+                using (var g = Graphics.FromImage(bmp))
+                {
+                    g.Clear(Color.Black);
+                    g.CopyFromScreen(sx, sy, 0, 0, new System.Drawing.Size(w, h), CopyPixelOperation.SourceCopy);
+                }
+                dib = BuildDib(bmp);
+            }
+
+            // 剪貼簿寫入移至背景執行緒（OpenClipboard 偶爾被占用需重試，避免卡繪製）
+            _ = Task.Run(() =>
+            {
+                var ok = SetClipboardDib(hwnd, dib);
+                Plugin.Framework.RunOnTick(() =>
+                {
+                    if (ok) Plugin.ChatGui.Print("[TCRanking] 截圖已複製到剪貼簿（可直接 Ctrl+V 貼上）");
+                    else    Plugin.ChatGui.PrintError("[TCRanking] 截圖複製剪貼簿失敗，請稍後再試");
+                });
+            });
         }
+        catch (Exception ex)
+        {
+            Plugin.Log.Warning(ex, "[TCRanking] 截圖失敗");
+            Plugin.ChatGui.PrintError("[TCRanking] 截圖失敗，詳見 /xllog");
+        }
+    }
+
+    // 把 24bpp Bitmap 打包成 CF_DIB（BITMAPINFOHEADER + bottom-up BGR 像素）
+    private static byte[] BuildDib(Bitmap bmp)
+    {
+        var w = bmp.Width;
+        var h = bmp.Height;
+        var data = bmp.LockBits(new Rectangle(0, 0, w, h),
+            ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
+        try
+        {
+            var stride  = data.Stride;          // GDI+ 已 4-byte 對齊
+            var imgSize = stride * h;
+            var dib     = new byte[40 + imgSize];
+            BitConverter.GetBytes(40).CopyTo(dib, 0);            // biSize
+            BitConverter.GetBytes(w).CopyTo(dib, 4);             // biWidth
+            BitConverter.GetBytes(h).CopyTo(dib, 8);             // biHeight（正值 = bottom-up）
+            BitConverter.GetBytes((short)1).CopyTo(dib, 12);     // biPlanes
+            BitConverter.GetBytes((short)24).CopyTo(dib, 14);    // biBitCount
+            BitConverter.GetBytes(imgSize).CopyTo(dib, 20);      // biSizeImage（biCompression=0 保持）
+            // GDI+ 為 top-down，DIB 需 bottom-up → 逐列反向複製
+            var scan0 = (nint)data.Scan0;
+            for (var y = 0; y < h; y++)
+                Marshal.Copy(scan0 + y * stride, dib, 40 + (h - 1 - y) * stride, stride);
+            return dib;
+        }
+        finally { bmp.UnlockBits(data); }
+    }
+
+    private static bool SetClipboardDib(nint hwnd, byte[] dib)
+    {
+        var hMem = GlobalAlloc(GMEM_MOVEABLE, (nuint)dib.Length);
+        if (hMem == nint.Zero) return false;
+        var ptr = GlobalLock(hMem);
+        if (ptr == nint.Zero) { GlobalFree(hMem); return false; }
+        Marshal.Copy(dib, 0, ptr, dib.Length);
+        GlobalUnlock(hMem);
+
+        // OpenClipboard 偶爾被其他程式短暫占用，重試數次
+        var opened = false;
+        for (var i = 0; i < 10 && !(opened = OpenClipboard(hwnd)); i++)
+            System.Threading.Thread.Sleep(10);
+        if (!opened) { GlobalFree(hMem); return false; }
+        try
+        {
+            EmptyClipboard();
+            // 成功後記憶體由系統接管，不可再 free；失敗才由我們釋放
+            if (SetClipboardData(CF_DIB, hMem) == nint.Zero) { GlobalFree(hMem); return false; }
+            return true;
+        }
+        finally { CloseClipboard(); }
     }
 
     private static Vector4 RankColor(int rank) => rank switch

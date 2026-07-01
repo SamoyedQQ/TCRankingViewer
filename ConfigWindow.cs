@@ -82,6 +82,22 @@ public class ConfigWindow : Window, IDisposable
         ImGui.Separator();
         ImGui.Spacing();
 
+        // ── 排名視窗顯示 ───────────────────────────────────────────────────
+        ImGui.TextColored(new Vector4(0.7f, 1f, 0.7f, 1), "排名視窗顯示");
+        ImGui.Spacing();
+
+        var ignoreBlNoNote = cfg.IgnoreBlacklistNoNote;
+        if (ImGui.Checkbox("無備註的黑名單玩家當作未黑單（不標記）", ref ignoreBlNoNote))
+        { cfg.IgnoreBlacklistNoNote = ignoreBlNoNote; cfg.Save(); }
+
+        var maskId = cfg.MaskIdOnScreenshot;
+        if (ImGui.Checkbox("截圖時隱藏玩家名稱（打碼）", ref maskId))
+        { cfg.MaskIdOnScreenshot = maskId; cfg.Save(); }
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
         // ── 快取 ───────────────────────────────────────────────────────────
         ImGui.TextColored(new Vector4(0.7f, 1f, 0.7f, 1), "資料快取");
         ImGui.Spacing();

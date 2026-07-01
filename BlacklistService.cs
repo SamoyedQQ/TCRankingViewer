@@ -433,6 +433,23 @@ public sealed class BlacklistService : IDisposable
         return null;
     }
 
+    // 黑名單懸浮提示文字：有備註顯示「黑名單：＂原因＂」，無備註僅顯示「黑名單」
+    public string TooltipText(string name)
+    {
+        var note = GetNote(name);
+        return string.IsNullOrEmpty(note) ? "黑名單" : $"黑名單：{note}";
+    }
+
+    // 是否在排名視窗中「標記為黑名單」（標紅／變底色／顯示懸浮）。
+    // 設定開啟時，無備註的黑名單玩家視為未黑單 → 回傳 false（正常顯示，而非隱藏該列）。
+    public bool IsMarked(string name)
+    {
+        if (!IsBlacklisted(name)) return false;
+        if (Plugin.Configuration.IgnoreBlacklistNoNote && string.IsNullOrEmpty(GetNote(name)))
+            return false;
+        return true;
+    }
+
     // ── Server sync ───────────────────────────────────────────────────────────
 
     // 取得所有本機黑名單條目，供上傳至 server；若 meta 中有 world/cid 一併帶上

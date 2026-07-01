@@ -17,6 +17,11 @@ public class Configuration : IPluginConfiguration
     public bool AutoOpenWindow      { get; set; } = false;
     public bool NotifyUnranked      { get; set; } = false;
 
+    // ── 排名視窗顯示 / 截圖 ─────────────────────────────────────────────────────
+    // 「無備註」的黑名單玩家視為未黑單（正常顯示、不標記），而非隱藏該列
+    public bool IgnoreBlacklistNoNote { get; set; } = false;
+    public bool MaskIdOnScreenshot    { get; set; } = false; // 截圖時把玩家名稱打碼
+
     // ── 社群資料同步（需同意使用須知）──────────────────────────────────────────
     // 預設為 false：首次載入插件不自動觸發任何上傳/下載，給使用者選擇是否參與的權利
     public bool AutoSyncOnStartup { get; set; } = false;
