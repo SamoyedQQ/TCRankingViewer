@@ -22,6 +22,25 @@ public class Configuration : IPluginConfiguration
     public bool IgnoreBlacklistNoNote { get; set; } = false;
     public bool MaskIdOnScreenshot    { get; set; } = false; // 截圖時把玩家名稱打碼
 
+    // 招募面板為解析跨服玩家名稱會短暫開啟遊戲「冒險者銘牌」再急著隱藏，lag 時偶爾閃現。
+    // 關閉此項後不再自動開卡，改只靠名稱快取 / 社群 CID 快取解析 → 完全零閃現，
+    // 代價是少數跨服成員可能顯示「無法解析」。預設開啟以維持最完整的解析率。
+    public bool AutoResolveViaCharaCard { get; set; } = true;
+
+    // 使用者自選要在表格中額外顯示的次要指標欄（key 見 RankCells.OptionalColumns）。
+    // 未列入者仍可在懸浮提示看到。預設顯示 GCD 與死亡數，讓新指標開箱即見。
+    public List<string> ExtraColumns { get; set; } = ["GCD", "deaths"];
+
+    // 回傳「合法且去重、依 OptionalColumns 固定順序」的欄位清單，避免舊設定殘留無效 key。
+    public List<string> GetExtraColumns()
+    {
+        var set = new HashSet<string>(ExtraColumns);
+        return RankCells.OptionalColumns
+            .Where(c => set.Contains(c.Key))
+            .Select(c => c.Key)
+            .ToList();
+    }
+
     // ── 社群資料同步（需同意使用須知）──────────────────────────────────────────
     // 預設為 false：首次載入插件不自動觸發任何上傳/下載，給使用者選擇是否參與的權利
     public bool AutoSyncOnStartup { get; set; } = false;

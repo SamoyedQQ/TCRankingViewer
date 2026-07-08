@@ -24,6 +24,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IToastGui              ToastGui            { get; private set; } = null!;
     [PluginService] internal static IGameConfig            GameConfig          { get; private set; } = null!;
     [PluginService] internal static IDataManager           DataManager         { get; private set; } = null!;
+    [PluginService] internal static IContextMenu           ContextMenu         { get; private set; } = null!;
 
     // ── Plugin-owned Services ───────────────────────────────────────────────
 #pragma warning disable CS8618
@@ -37,6 +38,8 @@ public sealed class Plugin : IDalamudPlugin
     public static MainWindow           MainWindow           { get; private set; }
     public static ConfigWindow         ConfigWindow         { get; private set; }
     public static PartyFinderWindow    PartyFinderWindow    { get; private set; }
+    public static PlayerHistoryWindow  PlayerHistoryWindow  { get; private set; }
+    public static PlayerContextMenu    PlayerContextMenu    { get; private set; }
 #pragma warning restore CS8618
 
     private const string CommandName = "/tcrank";
@@ -50,12 +53,14 @@ public sealed class Plugin : IDalamudPlugin
         BlacklistService = new BlacklistService();
         CidCache         = new CidCache();
 
-        MainWindow        = new MainWindow();
-        ConfigWindow      = new ConfigWindow();
-        PartyFinderWindow = new PartyFinderWindow();
+        MainWindow          = new MainWindow();
+        ConfigWindow        = new ConfigWindow();
+        PartyFinderWindow   = new PartyFinderWindow();
+        PlayerHistoryWindow = new PlayerHistoryWindow();
         WindowSystem.AddWindow(MainWindow);
         WindowSystem.AddWindow(ConfigWindow);
         WindowSystem.AddWindow(PartyFinderWindow);
+        WindowSystem.AddWindow(PlayerHistoryWindow);
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
@@ -69,6 +74,7 @@ public sealed class Plugin : IDalamudPlugin
         CharaCardLookup      = new CharaCardLookup();
         PartyWatcher         = new PartyWatcher();
         PartyFinderInspector = new PartyFinderInspector();
+        PlayerContextMenu    = new PlayerContextMenu();
 
         // 啟動時非同步下載排名資料（ContinueWith 在 Framework 主線程執行，確保 IPartyList 可正確讀取）
         _ = RankingService.RefreshAsync()
@@ -84,6 +90,7 @@ public sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
+        PlayerContextMenu.Dispose();
         PartyFinderInspector.Dispose();
         CharaCardLookup.Dispose();
         BlacklistService.Dispose();
@@ -92,6 +99,7 @@ public sealed class Plugin : IDalamudPlugin
         MainWindow.Dispose();
         ConfigWindow.Dispose();
         PartyFinderWindow.Dispose();
+        PlayerHistoryWindow.Dispose();
         PartyWatcher.Dispose();
         RankingService.Dispose();
         CommandManager.RemoveHandler(CommandName);

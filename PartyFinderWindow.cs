@@ -2,6 +2,8 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.Numerics;
 using System.Runtime.InteropServices;
+using Dalamud.Interface;
+using Dalamud.Interface.Components;
 using Dalamud.Interface.Windowing;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using ImGuiNET;
@@ -13,15 +15,16 @@ namespace TCRankingViewer;
 /// </summary>
 public sealed unsafe class PartyFinderWindow : Window, IDisposable
 {
-    private static readonly Vector4 Gold   = new(1.00f, 0.85f, 0.30f, 1f);
-    private static readonly Vector4 Silver = new(0.80f, 0.80f, 0.85f, 1f);
-    private static readonly Vector4 Bronze = new(0.80f, 0.55f, 0.30f, 1f);
-    private static readonly Vector4 Teal   = new(0.40f, 0.85f, 0.85f, 1f);
-    private static readonly Vector4 Dim    = new(0.55f, 0.55f, 0.55f, 1f);
-    private static readonly Vector4 White  = new(1.00f, 1.00f, 1.00f, 1f);
-    private static readonly Vector4 Green  = new(0.45f, 0.90f, 0.45f, 1f);
-    private static readonly Vector4 Red    = new(0.95f, 0.40f, 0.40f, 1f);
-    private static readonly Vector4 Purple = new(0.78f, 0.58f, 0.96f, 1f);   // 滅暗雲分類色
+    // 共用配色統一取自 RankColors，確保招募側欄與主視窗/履歷完全一致
+    private static readonly Vector4 Gold   = RankColors.Gold;
+    private static readonly Vector4 Silver = RankColors.Silver;
+    private static readonly Vector4 Bronze = RankColors.Bronze;
+    private static readonly Vector4 Teal   = RankColors.Teal;
+    private static readonly Vector4 Dim    = RankColors.Dim;
+    private static readonly Vector4 White  = RankColors.White;
+    private static readonly Vector4 Green  = RankColors.Green;
+    private static readonly Vector4 Red    = RankColors.Red;
+    private static readonly Vector4 Purple = RankColors.Purple;   // 滅暗雲分類色
 
     // 24 人精簡格狀的儲存格淡色底（半透明，疊在 RowBg 之上）
     // 滅暗雲有「初通關」額外獎勵：未通關者才是首通招募的目標 → 未通關綠、已通關紅
@@ -30,21 +33,7 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
     private static readonly Vector4 GridNeutral   = new(0.30f, 0.30f, 0.32f, 0.30f); // 淡灰：非滅暗雲/未知
     private static readonly Vector4 GridBlack     = new(0.40f, 0.16f, 0.16f, 0.55f); // 深紅：黑名單
 
-    private static readonly Dictionary<string, Vector4> JobColors =
-        new(StringComparer.Ordinal)
-    {
-        { "騎士", new(0.65f,0.83f,1.00f,1) }, { "戰士", new(0.94f,0.35f,0.35f,1) },
-        { "暗騎", new(0.82f,0.31f,0.75f,1) }, { "絕槍", new(0.75f,0.75f,0.50f,1) },
-        { "白魔", new(0.95f,0.95f,0.95f,1) }, { "學者", new(0.58f,0.71f,0.96f,1) },
-        { "占星", new(0.97f,0.87f,0.48f,1) }, { "賢者", new(0.54f,0.84f,0.80f,1) },
-        { "武僧", new(0.96f,0.62f,0.35f,1) }, { "龍騎", new(0.40f,0.57f,0.87f,1) },
-        { "忍者", new(0.96f,0.36f,0.55f,1) }, { "武士", new(0.89f,0.51f,0.18f,1) },
-        { "鐮魂", new(0.63f,0.44f,0.70f,1) }, { "蝰蛇", new(0.35f,0.80f,0.45f,1) },
-        { "詩人", new(0.90f,0.86f,0.62f,1) }, { "機工", new(0.64f,0.87f,0.87f,1) },
-        { "舞者", new(0.93f,0.62f,0.75f,1) },
-        { "黑魔", new(0.65f,0.55f,0.90f,1) }, { "召喚", new(0.45f,0.78f,0.62f,1) },
-        { "赤魔", new(0.90f,0.50f,0.50f,1) }, { "繪靈", new(0.85f,0.65f,0.90f,1) },
-    };
+    private static readonly Dictionary<string, Vector4> JobColors = RankColors.JobColors;
 
     private readonly HashSet<string> _expandedPlayers = [];
     private string  _categoryFilter = "全部";
@@ -76,10 +65,10 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
         IsOpen = false;
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(300, 120),
-            MaximumSize = new Vector2(700, 900),
+            MinimumSize = new Vector2(320, 120),
+            MaximumSize = new Vector2(1200, 900),
         };
-        Size          = new Vector2(380, 400);
+        Size          = new Vector2(460, 400);
         SizeCondition = ImGuiCond.FirstUseEver;
     }
 
@@ -100,10 +89,14 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
 
         ImGui.SetNextWindowPos(new Vector2(addonX + addonW + 4, addonY), ImGuiCond.Always);
 
-        var currentSize = ImGui.GetWindowSize();
-        ImGui.SetNextWindowSize(
-            new Vector2(currentSize.X > 0 ? currentSize.X : 380f, addonH),
-            ImGuiCond.Always);
+        // 高度鎖定為招募視窗高度、寬度交給使用者自由拉伸（欄位多時可拉寬避免名字被擠掉）。
+        // 以 SizeConstraints 而非 SetNextWindowSize(Always) 鎖高度——後者連寬度也強制、
+        // 導致完全無法手動調整寬度。此屬性於 Dalamud Begin 時套用（PreDraw 之後），故每幀更新。
+        SizeConstraints = new WindowSizeConstraints
+        {
+            MinimumSize = new Vector2(320f, addonH),
+            MaximumSize = new Vector2(1200f, addonH),
+        };
     }
 
     public override void Draw()
@@ -265,43 +258,71 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
                 _forceDetailView = !_forceDetailView;
         }
 
-        // 右側按鈕從左到右：截圖 → 刷新 → 設定（先跳到右端起點再 SameLine 依序接上）
-        ImGui.SameLine(ImGui.GetContentRegionAvail().X - 148);
-        if (ImGui.SmallButton("截圖"))
+        // 右側圖示按鈕從左到右：截圖 → 刷新 → 設定（先跳到右端起點再 SameLine 依序接上）
+        // 三顆方形圖示按鈕的總寬（含間距），據此右對齊
+        var btnRegion = ImGui.GetFrameHeight() * 3 + ImGui.GetStyle().ItemSpacing.X * 3;
+        ImGui.SameLine(ImGui.GetContentRegionAvail().X - btnRegion);
+        if (IconButton("##pfShot", FontAwesomeIcon.Camera, "截圖"))
         {
             // 點按當下決定是否打碼，phase 1 讓下一幀以遮罩繪製、再下一幀擷取
             _shotMask  = Plugin.Configuration.MaskIdOnScreenshot;
             _shotPhase = 1;
         }
         ImGui.SameLine();
-        if (ImGui.SmallButton("刷新"))
+        if (IconButton("##pfRefresh", FontAwesomeIcon.Sync, "刷新"))
         {
             var addonPtr = Plugin.GameGui.GetAddonByName("LookingForGroupDetail", 1);
             Plugin.PartyFinderInspector.RefreshFromAgent(addonPtr);
         }
         ImGui.SameLine();
-        if (ImGui.SmallButton("設定"))
+        if (IconButton("##pfConfig", FontAwesomeIcon.Cog, "設定"))
             Plugin.ConfigWindow.Toggle();
     }
 
-    private static void DrawLoadingTable(int rowCount)
+    // 圖示按鈕 + 懸浮說明；回傳是否被點擊
+    private static bool IconButton(string id, FontAwesomeIcon icon, string tooltip)
     {
-        const ImGuiTableFlags flags =
-            ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg |
-            ImGuiTableFlags.ScrollY | ImGuiTableFlags.SizingStretchProp;
+        var clicked = ImGuiComponents.IconButton(id, icon);
+        if (ImGui.IsItemHovered()) ImGui.SetTooltip(tooltip);
+        return clicked;
+    }
 
-        if (!ImGui.BeginTable("##pfranks", 7, flags, new Vector2(-1, -1)))
-            return;
+    // 本次繪製套用的可選欄（由 BeginPfTable 每次從設定讀取）
+    private List<string> _extra = [];
+
+    // 建立招募表格：8 個固定欄 + 使用者自選的次要指標欄，並輸出表頭。回傳是否成功開始。
+    private bool BeginPfTable()
+    {
+        _extra = Plugin.Configuration.GetExtraColumns();
+        // 只留列間水平分隔線；SizingFixedFit：各欄依內容自動貼合，多餘寬度留在表格外，
+        // 不會把空白塞進副本欄。玩家/副本欄依內容自動伸縮。
+        const ImGuiTableFlags flags =
+            ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.RowBg |
+            ImGuiTableFlags.ScrollY | ImGuiTableFlags.NoHostExtendX |
+            ImGuiTableFlags.SizingFixedFit;
+
+        if (!ImGui.BeginTable("##pfranks", 8 + _extra.Count, flags, new Vector2(-1, -1)))
+            return false;
 
         ImGui.TableSetupScrollFreeze(0, 1);
-        ImGui.TableSetupColumn("玩家",  ImGuiTableColumnFlags.WidthStretch, 2.5f);
-        ImGui.TableSetupColumn("現職",  ImGuiTableColumnFlags.WidthFixed,   44f);
-        ImGui.TableSetupColumn("職業",  ImGuiTableColumnFlags.WidthFixed,   44f);
-        ImGui.TableSetupColumn("副本",  ImGuiTableColumnFlags.WidthStretch, 2.8f);
-        ImGui.TableSetupColumn("排名",  ImGuiTableColumnFlags.WidthFixed,   55f);
-        ImGui.TableSetupColumn("rDPS", ImGuiTableColumnFlags.WidthFixed,   68f);
-        ImGui.TableSetupColumn("aDPS", ImGuiTableColumnFlags.WidthFixed,   68f);
+        ImGui.TableSetupColumn("玩家",   ImGuiTableColumnFlags.WidthFixed);
+        ImGui.TableSetupColumn("現職",   ImGuiTableColumnFlags.WidthFixed,   44f);
+        ImGui.TableSetupColumn("職業",   ImGuiTableColumnFlags.WidthFixed,   44f);
+        ImGui.TableSetupColumn("副本",   ImGuiTableColumnFlags.WidthFixed);
+        ImGui.TableSetupColumn("名次",   ImGuiTableColumnFlags.WidthFixed,   50f);
+        ImGui.TableSetupColumn("PR",     ImGuiTableColumnFlags.WidthFixed,   38f);
+        ImGui.TableSetupColumn("rDPS%",  ImGuiTableColumnFlags.WidthFixed,   54f);
+        ImGui.TableSetupColumn("rDPS",   ImGuiTableColumnFlags.WidthFixed,   64f);
+        foreach (var key in _extra)
+            ImGui.TableSetupColumn(RankCells.OptionalHeader(key),
+                ImGuiTableColumnFlags.WidthFixed, RankCells.OptionalWidth(key));
         ImGui.TableHeadersRow();
+        return true;
+    }
+
+    private void DrawLoadingTable(int rowCount)
+    {
+        if (!BeginPfTable()) return;
 
         var btnSize = new Vector2(ImGui.GetFrameHeight(), ImGui.GetFrameHeight());
         for (var i = 0; i < rowCount; i++)
@@ -310,7 +331,7 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
             ImGui.TableSetColumnIndex(0);
             ImGui.Dummy(btnSize); ImGui.SameLine();
             ImGui.TextColored(Dim, "查詢中...");
-            for (var col = 1; col <= 6; col++)
+            for (var col = 1; col <= 7 + _extra.Count; col++)
             { ImGui.TableSetColumnIndex(col); ImGui.TextColored(Dim, "─"); }
         }
 
@@ -319,22 +340,7 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
 
     private void DrawTable(IReadOnlyList<PartyMemberResult> results, int extraUnresolvable)
     {
-        const ImGuiTableFlags flags =
-            ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg |
-            ImGuiTableFlags.ScrollY | ImGuiTableFlags.SizingStretchProp;
-
-        if (!ImGui.BeginTable("##pfranks", 7, flags, new Vector2(-1, -1)))
-            return;
-
-        ImGui.TableSetupScrollFreeze(0, 1);
-        ImGui.TableSetupColumn("玩家",  ImGuiTableColumnFlags.WidthStretch, 2.5f);
-        ImGui.TableSetupColumn("現職",  ImGuiTableColumnFlags.WidthFixed,   44f);
-        ImGui.TableSetupColumn("職業",  ImGuiTableColumnFlags.WidthFixed,   44f);
-        ImGui.TableSetupColumn("副本",  ImGuiTableColumnFlags.WidthStretch, 2.8f);
-        ImGui.TableSetupColumn("排名",  ImGuiTableColumnFlags.WidthFixed,   55f);
-        ImGui.TableSetupColumn("rDPS", ImGuiTableColumnFlags.WidthFixed,   68f);
-        ImGui.TableSetupColumn("aDPS", ImGuiTableColumnFlags.WidthFixed,   68f);
-        ImGui.TableHeadersRow();
+        if (!BeginPfTable()) return;
 
         var btnSize      = new Vector2(ImGui.GetFrameHeight(), ImGui.GetFrameHeight());
         var bossFragment = EncounterMeta.GetBossFragmentForDutyName(
@@ -348,7 +354,7 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
                 ImGui.TableSetColumnIndex(0);
                 ImGui.Dummy(btnSize); ImGui.SameLine();
                 ImGui.TextColored(Dim, "（無法解析）");
-                for (var col = 1; col <= 6; col++)
+                for (var col = 1; col <= 7 + _extra.Count; col++)
                 { ImGui.TableSetColumnIndex(col); ImGui.TextColored(Dim, "─"); }
                 continue;
             }
@@ -406,6 +412,10 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
 
             var isBlacklisted = Plugin.BlacklistService.IsMarked(member.CharacterName);
             ImGui.TextColored(isBlacklisted ? Red : White, MaskName(member.CharacterName));
+            // 左鍵點名字開啟該玩家履歷視窗（與右鍵選單同一功能）
+            if (ImGui.IsItemHovered()) ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
+            if (ImGui.IsItemClicked() && !string.IsNullOrEmpty(member.CharacterName))
+                Plugin.PlayerHistoryWindow.Open(member.CharacterName, member.WorldName);
             // 黑名單改為懸浮在名字上顯示「黑名單：＂原因＂」，不再另加 Ｘ 按鈕
             if (isBlacklisted && ImGui.IsItemHovered())
                 ImGui.SetTooltip(Plugin.BlacklistService.TooltipText(member.CharacterName));
@@ -449,6 +459,9 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
                 ImGui.TableSetColumnIndex(4); ImGui.TextColored(Dim, "─");
                 ImGui.TableSetColumnIndex(5); ImGui.TextColored(Dim, "─");
                 ImGui.TableSetColumnIndex(6); ImGui.TextColored(Dim, "─");
+                ImGui.TableSetColumnIndex(7); ImGui.TextColored(Dim, "─");
+                for (var i = 0; i < _extra.Count; i++)
+                { ImGui.TableSetColumnIndex(8 + i); ImGui.TextColored(Dim, "─"); }
                 continue;
             }
 
@@ -477,7 +490,7 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
             ImGui.TableSetColumnIndex(0);
             ImGui.Dummy(btnSize); ImGui.SameLine();
             ImGui.TextColored(Dim, "（無法解析）");
-            for (var col = 1; col <= 6; col++)
+            for (var col = 1; col <= 7 + _extra.Count; col++)
             { ImGui.TableSetColumnIndex(col); ImGui.TextColored(Dim, "─"); }
         }
 
@@ -648,8 +661,8 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
             ImGui.TableSetBgColor(ImGuiTableBgTarget.RowBg0,
                 ImGui.GetColorU32(new Vector4(0.15f, 0.15f, 0.15f, 1f)));
             ImGui.TableSetColumnIndex(0);
-            ImGui.TextColored(color, $"  ▸{label}");
-            for (var c = 1; c <= 6; c++)
+            ImGui.TextColored(color, $"   {label}");
+            for (var c = 1; c <= 7 + _extra.Count; c++)
             { ImGui.TableSetColumnIndex(c); }
 
             foreach (var e in sorted)
@@ -662,11 +675,11 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
         }
     }
 
-    private static void DrawEntryColumns(RankingEntry e)
+    // 欄位：2職業 3副本 4名次 5PR 6rDPS% 7rDPS + 8.. 使用者自選的次要指標欄
+    private void DrawEntryColumns(RankingEntry e)
     {
-        var abbrev    = string.IsNullOrEmpty(e.Job) ? "─" : JobAbbrev.Get(e.Job);
-        var jColor    = (e.IsObsolete || e.IsProg) ? Dim : (JobColors.TryGetValue(abbrev, out var jc) ? jc : Dim);
-        var textColor = (e.IsObsolete || e.IsProg) ? Dim : White;
+        var abbrev = string.IsNullOrEmpty(e.Job) ? "─" : JobAbbrev.Get(e.Job);
+        var jColor = (e.IsObsolete || e.IsProg) ? Dim : RankColors.JobColorOf(abbrev);
 
         ImGui.TableSetColumnIndex(2); ImGui.TextColored(jColor, abbrev);
 
@@ -674,22 +687,25 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
         {
             ImGui.TableSetColumnIndex(3);
             ImGui.TextColored(Dim, ShortenBossName(e.Boss));
-            ImGui.SameLine();
-            // ImGui 文字以 printf 解析，字面 % 需寫成 %% 才會顯示
-            ImGui.TextColored(Teal, $"完成 {100 - e.FightPct:F1}%%");
-            var phase     = !string.IsNullOrEmpty(e.FurthestPhase) ? e.FurthestPhase : "進度中";
-            var progLabel = $"{phase}({e.BossPct:F1}%%)";
-            ImGui.TableSetColumnIndex(4); ImGui.TextColored(Teal, progLabel);
+            var phase = !string.IsNullOrEmpty(e.FurthestPhase) ? e.FurthestPhase : "進度中";
+            ImGui.TableSetColumnIndex(4); ImGui.TextColored(Teal, phase);
             ImGui.TableSetColumnIndex(5); ImGui.TextColored(Dim, "─");
             ImGui.TableSetColumnIndex(6); ImGui.TextColored(Dim, "─");
+            // ImGui 文字以 printf 解析，字面 % 需寫成 %% 才會顯示
+            ImGui.TableSetColumnIndex(7); ImGui.TextColored(Teal, $"完成 {100 - e.FightPct:F1}%%");
         }
         else
         {
-            ImGui.TableSetColumnIndex(3); ImGui.TextColored(Dim, ShortenBossName(e.Boss));
-            ImGui.TableSetColumnIndex(4); ImGui.TextColored(e.IsObsolete ? Dim : RankColor(e.Rank), $"#{e.Rank}");
-            ImGui.TableSetColumnIndex(5); ImGui.TextColored(textColor, $"{e.Rdps:F0}");
-            ImGui.TableSetColumnIndex(6); ImGui.TextColored(Dim, $"{e.Adps:F0}");
+            ImGui.TableSetColumnIndex(3);
+            ImGui.TextColored(Dim, ShortenBossName(e.Boss));
+            RankCells.DrawSecondaryTooltip(e);
+            ImGui.TableSetColumnIndex(4); ImGui.TextColored(e.IsObsolete ? Dim : RankColors.RankColor(e.Rank), $"#{e.Rank}");
+            ImGui.TableSetColumnIndex(5); RankCells.DrawPr(e);
+            ImGui.TableSetColumnIndex(6); RankCells.DrawRdpsPct(e);
+            ImGui.TableSetColumnIndex(7); ImGui.TextColored(e.IsObsolete ? Dim : White, $"{e.Rdps:F0}");
         }
+        for (var i = 0; i < _extra.Count; i++)
+        { ImGui.TableSetColumnIndex(8 + i); RankCells.DrawOptionalCell(e, _extra[i]); }
     }
 
     // 截圖打碼：遮罩期間把玩家名稱換成等長的全形星號，隱藏 ID；平時原樣回傳

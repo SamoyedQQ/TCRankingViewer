@@ -21,6 +21,24 @@ public class RankingEntry
     public double Rdps          { get; set; }
     public double Adps          { get; set; }
     public double FightDuration { get; set; }
+
+    // ── 建索引時由 RankingService 計算的顯示欄位（定義與資料站表頭一致）──────────
+    // PR：同副本同職業內「贏過多少人」的百分位（PR75 = 贏過 75%）。
+    // 樣本 < 20 筆時資料站不計 PR → 這裡以 null 表示，UI 顯示「—」。
+    public int?  Pr          { get; set; }
+    // 20~50 筆為小樣本：PR 仍計算但位階僅供參考，UI 可淡化提示。
+    public bool  PrLowSample { get; set; }
+    // rDPS%：本人 rDPS 達該職最高者的幾成（95 = 達頂尖 95%）。
+    public double? RdpsPct   { get; set; }
+
+    // ── 資料站原始檔提供、需後端 trimRankingFile 保留才會有值的次要指標 ───────────
+    // 尚未保留前一律為 null，UI 僅在有值時顯示，避免顯示 0 誤導。
+    public double? Ndps          { get; set; }  // normalized DPS
+    public int?    GcdMs         { get; set; }  // 平均 GCD 配速（毫秒）；>2500 資料站一律顯示 2500
+    public double? GcdUptime     { get; set; }  // GCD 銜接緊密度 %
+    public double? ActivePercent { get; set; }  // 戰鬥中實際輸出時間佔比 %
+    public int?    Deaths        { get; set; }  // 該場死亡數
+    public string? ReportCode    { get; set; }  // FFLogs 報告代碼；URL 於顯示端組成
 }
 
 // ─── Kantai235 encounters.json ────────────────────────────────────────────────
@@ -62,6 +80,15 @@ public class KantaiRankingEntry
     [JsonPropertyName("rdps")]               public double Rdps             { get; set; }
     [JsonPropertyName("adps")]               public double Adps             { get; set; }
     [JsonPropertyName("clear_time_seconds")] public double ClearTimeSeconds { get; set; }
+
+    // 以下欄位資料站原始檔皆有，但需後端 trimRankingFile 保留才會下傳；
+    // 未保留時為 null（nullable），插件端顯示時自動略過。
+    [JsonPropertyName("ndps")]               public double? Ndps           { get; set; }
+    [JsonPropertyName("gcd_length_ms")]      public int?    GcdLengthMs    { get; set; }
+    [JsonPropertyName("gcd_uptime")]         public double? GcdUptime      { get; set; }
+    [JsonPropertyName("active_percent")]     public double? ActivePercent  { get; set; }
+    [JsonPropertyName("deaths")]             public int?    Deaths         { get; set; }
+    [JsonPropertyName("report_code")]        public string? ReportCode     { get; set; }
 }
 
 // ─── progress/{key}.json（最遠進度，未通關玩家）──────────────────────────────

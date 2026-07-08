@@ -1,4 +1,6 @@
 using System.Threading;
+using Dalamud.Game.Addon.Lifecycle;
+using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using Dalamud.Game.Gui.Toast;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
@@ -40,6 +42,24 @@ public sealed class CharaCardLookup : IDisposable
         Plugin.ChatGui.ChatMessage += OnChatMessage;
         Plugin.ToastGui.Toast      += OnToast;
         Plugin.ToastGui.ErrorToast += OnErrorToast;
+        // 「繪製前隱藏」：在 CharaCard addon 建立/更新/繪製的最早時機就隱藏，
+        // 比等待下一個 Framework.Update 更早，顯著降低偶爾閃現一幀的機率。
+        Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreSetup,   "CharaCard", OnCharaCardEarly);
+        Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreRefresh, "CharaCard", OnCharaCardEarly);
+        Plugin.AddonLifecycle.RegisterListener(AddonEvent.PreDraw,    "CharaCard", OnCharaCardEarly);
+    }
+
+    // 我方查詢作用中時，一偵測到 CharaCard 就隱藏（繪製前）。非作用中則完全不干預，
+    // 讓使用者正常手動開卡不受影響。
+    private unsafe void OnCharaCardEarly(AddonEvent ev, AddonArgs args)
+    {
+        if (!IsActive(Environment.TickCount64)) return;
+        var agent = AgentCharaCard.Instance();
+        if (agent != null && agent->IsAddonShown())
+        {
+            agent->HideAddon();
+            ExtendCleanup(ref _cleanupUntil, Environment.TickCount64 + AddonTailMs);
+        }
     }
 
     // Active = a request is in flight OR we're inside the cleanup grace window.
@@ -279,6 +299,7 @@ public sealed class CharaCardLookup : IDisposable
 
     public void Dispose()
     {
+        Plugin.AddonLifecycle.UnregisterListener(OnCharaCardEarly);
         Plugin.ToastGui.ErrorToast -= OnErrorToast;
         Plugin.ToastGui.Toast      -= OnToast;
         Plugin.ChatGui.ChatMessage -= OnChatMessage;

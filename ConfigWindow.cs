@@ -94,6 +94,41 @@ public class ConfigWindow : Window, IDisposable
         if (ImGui.Checkbox("截圖時隱藏玩家名稱（打碼）", ref maskId))
         { cfg.MaskIdOnScreenshot = maskId; cfg.Save(); }
 
+        var autoCard = cfg.AutoResolveViaCharaCard;
+        if (ImGui.Checkbox("招募面板自動開卡解析跨服名稱（可能偶爾閃現角色卡）", ref autoCard))
+        { cfg.AutoResolveViaCharaCard = autoCard; cfg.Save(); }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip(
+                "關閉後完全不再閃現角色卡；少數跨服成員可能顯示「無法解析」\n"
+              + "（同隊過或社群 CID 快取通常已補齊，多數情況仍能正常顯示）。");
+
+        ImGui.Spacing();
+
+        // ── 顯示欄位（可自選要在表格額外顯示的次要指標）────────────────────────
+        ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1), "額外顯示欄位（未勾選者仍可在懸浮提示看到）");
+        ImGui.Spacing();
+        var extra = new HashSet<string>(cfg.ExtraColumns);
+        var changed = false;
+        for (var i = 0; i < RankCells.OptionalColumns.Length; i++)
+        {
+            var (key, header, _) = RankCells.OptionalColumns[i];
+            var on = extra.Contains(key);
+            if (ImGui.Checkbox($"{header}##col_{key}", ref on))
+            {
+                if (on) extra.Add(key); else extra.Remove(key);
+                changed = true;
+            }
+            // 每行擺三個，排版較緊湊
+            if (i % 3 != 2 && i != RankCells.OptionalColumns.Length - 1) ImGui.SameLine(0, 24);
+        }
+        if (changed)
+        {
+            // 依 OptionalColumns 固定順序寫回，維持欄位順序一致
+            cfg.ExtraColumns = RankCells.OptionalColumns
+                .Where(c => extra.Contains(c.Key)).Select(c => c.Key).ToList();
+            cfg.Save();
+        }
+
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();

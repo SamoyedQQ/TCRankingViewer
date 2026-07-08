@@ -145,13 +145,24 @@ public class RankingService : IDisposable
 
                 foreach (var jobGroup in byJob)
                 {
-                    var ranked = jobGroup.OrderByDescending(e => e.Rdps).ToList();
-                    for (var i = 0; i < ranked.Count; i++)
+                    var ranked  = jobGroup.OrderByDescending(e => e.Rdps).ToList();
+                    var sample  = ranked.Count;                       // 該副本該職業樣本數
+                    var maxRdps = sample > 0 ? ranked[0].Rdps : 0;    // 已降冪排序 → 首筆即最高
+
+                    for (var i = 0; i < sample; i++)
                     {
-                        var e = ranked[i];
+                        var e    = ranked[i];
+                        var rank = i + 1;
+
+                        // PR：定義同資料站——樣本 < 20 不計（null → 顯示「—」）；
+                        // 否則 =「贏過的人數 / 其他人數」百分比（PR75 = 贏過 75%）。
+                        int? pr = sample >= 20
+                            ? (int)Math.Round((sample - rank) / (double)(sample - 1) * 100)
+                            : null;
+
                         allEntries.Add(new RankingEntry
                         {
-                            Rank          = i + 1,
+                            Rank          = rank,
                             Boss          = bossName,
                             Category      = category,
                             IsObsolete    = isObsolete,
@@ -162,6 +173,17 @@ public class RankingService : IDisposable
                             Rdps          = e.Rdps,
                             Adps          = e.Adps,
                             FightDuration = e.ClearTimeSeconds,
+                            // 顯示層計算欄位
+                            Pr            = pr,
+                            PrLowSample   = sample is >= 20 and <= 50,  // 小樣本：位階僅供參考
+                            RdpsPct       = maxRdps > 0 ? e.Rdps / maxRdps * 100 : null,
+                            // 次要指標（後端保留才有值，否則為 null）
+                            Ndps          = e.Ndps,
+                            GcdMs         = e.GcdLengthMs,
+                            GcdUptime     = e.GcdUptime,
+                            ActivePercent = e.ActivePercent,
+                            Deaths        = e.Deaths,
+                            ReportCode    = e.ReportCode,
                         });
                     }
                 }

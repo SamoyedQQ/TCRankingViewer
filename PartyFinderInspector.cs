@@ -221,10 +221,28 @@ public sealed class PartyFinderInspector : IDisposable
 
         if (unknownSlots.Count > 0)
         {
-            Interlocked.Exchange(ref _pendingLookups, unknownSlots.Count);
-            var cts = new CancellationTokenSource();
-            _lookupCts = cts;
-            _ = LookupUnknownNamesAsync(unknownSlots, cts.Token);
+            if (Plugin.Configuration.AutoResolveViaCharaCard)
+            {
+                Interlocked.Exchange(ref _pendingLookups, unknownSlots.Count);
+                var cts = new CancellationTokenSource();
+                _lookupCts = cts;
+                _ = LookupUnknownNamesAsync(unknownSlots, cts.Token);
+            }
+            else
+            {
+                // 使用者關閉自動開卡 → 不觸發任何 CharaCard（零閃現）。
+                // 純未知名（knownName == null）的佔位列標為「無法解析」；同名跨服者維持
+                // best-guess 資料（已在 _staged 內），直接發布結果。
+                lock (_lock)
+                {
+                    foreach (var (idx, _, _, knownName) in unknownSlots)
+                        if (knownName == null && idx < _staged.Count)
+                            _staged[idx] = new PartyMemberResult { IsUnresolvable = true };
+                    _results.Clear();
+                    _results.AddRange(_staged);
+                }
+                UnresolvedCount = unknownSlots.Count(s => s.knownName == null);
+            }
         }
     }
 
