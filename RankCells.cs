@@ -19,11 +19,12 @@ public static class RankCells
             ImGui.SetTooltip("小樣本（該職業樣本 20~50 筆），位階僅供參考");
     }
 
-    // rDPS%：達該職最高者幾成；比照 FFLogs 段色上色。
+    // rDPS%：達該職最高者幾成。不套 FFLogs 段色（那是名次百分位 PR 的語意，rDPS% 用色反而混淆），
+    // 一律白色，僅 PR 欄保留 FFLogs 分級色。
     public static void DrawRdpsPct(RankingEntry e)
     {
         if (e.RdpsPct is not double pct) { ImGui.TextColored(RankColors.Dim, "—"); return; }
-        ImGui.TextColored(RankColors.ParseColor(pct), $"{pct:F1}");
+        ImGui.TextColored(RankColors.White, $"{pct:F1}");
     }
 
     // ── 可自選的次要指標欄（設定頁勾選；主視窗/招募/履歷共用）──────────────────────

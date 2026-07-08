@@ -85,17 +85,14 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
         var addonX = (float)addon->X;
         var addonY = (float)addon->Y;
         var addonW = (float)addon->GetScaledWidth(true);
-        var addonH = (float)addon->GetScaledHeight(true);
 
+        // 只把視窗貼附在招募視窗右側；寬高都交給使用者自由調整並由 ImGui 記憶
+        // （不再鎖高度＝招募視窗高度，該鎖定無實質意義且限制了排名列數的檢視）。
         ImGui.SetNextWindowPos(new Vector2(addonX + addonW + 4, addonY), ImGuiCond.Always);
-
-        // 高度鎖定為招募視窗高度、寬度交給使用者自由拉伸（欄位多時可拉寬避免名字被擠掉）。
-        // 以 SizeConstraints 而非 SetNextWindowSize(Always) 鎖高度——後者連寬度也強制、
-        // 導致完全無法手動調整寬度。此屬性於 Dalamud Begin 時套用（PreDraw 之後），故每幀更新。
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(320f, addonH),
-            MaximumSize = new Vector2(1200f, addonH),
+            MinimumSize = new Vector2(320f, 120f),
+            MaximumSize = new Vector2(1200f, 2000f),
         };
     }
 
@@ -279,11 +276,12 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
             Plugin.ConfigWindow.Toggle();
     }
 
-    // 圖示按鈕 + 懸浮說明；回傳是否被點擊
-    private static bool IconButton(string id, FontAwesomeIcon icon, string tooltip)
+    // 圖示按鈕 + 懸浮說明；回傳是否被點擊。
+    // 截圖流程進行中（_shotPhase != 0）不顯示 tooltip，避免「截圖」等說明被拍進畫面。
+    private bool IconButton(string id, FontAwesomeIcon icon, string tooltip)
     {
         var clicked = ImGuiComponents.IconButton(id, icon);
-        if (ImGui.IsItemHovered()) ImGui.SetTooltip(tooltip);
+        if (_shotPhase == 0 && ImGui.IsItemHovered()) ImGui.SetTooltip(tooltip);
         return clicked;
     }
 
