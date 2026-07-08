@@ -4,7 +4,7 @@
   "Punchline": "自動從 TC 繁中服排名查詢隊友 Savage 排名",
   "Description": "當隊友進入隊伍或開啟招募資訊時，自動抓取對應角色的零式/極/絕本排名與最遠進度資料，並顯示於聊天框與插件視窗。",
   "InternalName": "TCRankingViewer",
-  "AssemblyVersion": "1.0.6.1",
+  "AssemblyVersion": "1.0.6.2",
   "RepoUrl": "https://github.com/SamoyedQQ/TCRankingViewer",
   "ApplicableVersion": "any",
   "Tags": ["fflogs", "ranking", "party", "tc", "繁中服"],

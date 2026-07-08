@@ -1,5 +1,4 @@
 using System.Numerics;
-using Dalamud.Interface;
 using Dalamud.Interface.Windowing;
 using ImGuiNET;
 
@@ -11,7 +10,6 @@ namespace TCRankingViewer;
 /// </summary>
 public class PlayerHistoryWindow : Window, IDisposable
 {
-    private static readonly Vector4 Gold  = RankColors.Gold;
     private static readonly Vector4 Teal  = RankColors.Teal;
     private static readonly Vector4 Dim   = RankColors.Dim;
     private static readonly Vector4 White = RankColors.White;
@@ -77,29 +75,40 @@ public class PlayerHistoryWindow : Window, IDisposable
 
         var hasReports = _entries.Any(e => !string.IsNullOrEmpty(e.ReportCode));
 
-        foreach (var (label, color, rows) in GroupByCategory())
+        // 各類別先分好、排序好並過濾空類別，之後每個非空類別給一個分頁。
+        // 相較舊版全部垂直堆疊，分頁讓玩家一次只看單一類別，畫面清爽。
+        var groups = GroupByCategory()
+            .Select(g => (g.label, rows: EncounterMeta.SortByJobThenContent(g.rows)))
+            .Where(g => g.rows.Count > 0)
+            .ToList();
+
+        if (groups.Count == 0) return;
+
+        // 分頁列容許左右捲動，類別多時不會擠壓變形
+        if (!ImGui.BeginTabBar("##hist_categories", ImGuiTabBarFlags.FittingPolicyScroll))
+            return;
+
+        foreach (var (label, rows) in groups)
         {
-            var sorted = EncounterMeta.SortByJobThenContent(rows);
-            if (sorted.Count == 0) continue;
+            if (!ImGui.BeginTabItem($"{label}###hist_tab_{label}"))
+                continue;
 
             ImGui.Spacing();
-            ImGui.PushFont(UiBuilder.IconFont);
-            ImGui.TextColored(color, FontAwesomeIcon.CaretRight.ToIconString());
-            ImGui.PopFont();
-            ImGui.SameLine(0, 5);
-            ImGui.TextColored(color, label);
-            DrawGroupTable(sorted, hasReports);
+            DrawGroupTable(rows, hasReports);
+            ImGui.EndTabItem();
         }
+
+        ImGui.EndTabBar();
     }
 
-    // 依類別分段（順序同主視窗「全部」展開）：絕 → 滅 → 零式 → 極/幻 → 過版本
-    private IEnumerable<(string label, Vector4 color, IEnumerable<RankingEntry> rows)> GroupByCategory()
+    // 依類別分段（分頁順序）：絕 → 零式 → 極/幻 → 滅 → 過版本
+    private IEnumerable<(string label, IEnumerable<RankingEntry> rows)> GroupByCategory()
     {
-        yield return ("絕境戰", Gold,               _entries.Where(e => e.Category == "絕"  && !e.IsObsolete));
-        yield return ("滅暗雲", RankColors.Purple,  _entries.Where(e => e.Category == "滅"  && !e.IsObsolete));
-        yield return ("零式",   Teal,               _entries.Where(e => e.Category == "零式" && !e.IsObsolete));
-        yield return ("極 / 幻", RankColors.Silver, _entries.Where(e => e.Category is "極" or "幻" && !e.IsObsolete));
-        yield return ("過版本", Dim,                _entries.Where(e => e.IsObsolete));
+        yield return ("絕境戰", _entries.Where(e => e.Category == "絕"  && !e.IsObsolete));
+        yield return ("零式",   _entries.Where(e => e.Category == "零式" && !e.IsObsolete));
+        yield return ("極 / 幻", _entries.Where(e => e.Category is "極" or "幻" && !e.IsObsolete));
+        yield return ("滅暗雲", _entries.Where(e => e.Category == "滅"  && !e.IsObsolete));
+        yield return ("過版本", _entries.Where(e => e.IsObsolete));
     }
 
     private void DrawGroupTable(List<RankingEntry> rows, bool hasReports)

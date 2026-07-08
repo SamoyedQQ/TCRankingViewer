@@ -227,6 +227,14 @@ if (ImGui.BeginPopup(popupId)) { ... ImGui.EndPopup(); }
 ## Release 流程
 **工作流程**：改完程式碼後先 `dotnet build -c Release` 給使用者測試，**確認測試通過並獲得同意後**才執行 commit / push / release，不得提前發版。
 
+### 公開 release notes 撰寫規範
+公開 repo（`https://github.com/SamoyedQQ/TCRankingViewer`）的 release notes 面向一般插件使用者，必須遵守以下規範：
+
+- **禁止提及**後端實作細節：Worker、KV、D1、admin 後台、HMAC、dedup、Race condition、class 名稱（如 `RecordMeta`、`GetAllLocalEntries`）
+- **用語**以使用者視角描述現象與結果，例如「伺服器與角色 ID 有時未能正確同步」而非「RecordMeta 過早過濾」
+- **每則都要有「大眾看得懂的簡單版」**：用最白話講使用者實際感受到的好處（更快 / 更省流量 / 更穩定），不出現任何技術名詞。純後端改動也要翻成使用者視角的一句話（例：「後端大幅優化，服務更穩定、能支撐更多人同時使用」），不可省略、也不可直接寫技術細節。
+- **詳細技術說明**（成因分析、架構決策、Worker 端改動）只寫在私有 repo（`TCRankingViewerOLD`）的 release notes
+
 每次發版需：
 1. 更新 `TCRankingViewer.csproj` 的 `<Version>`、`TCRankingViewer.json` 的 `AssemblyVersion`、**`repo.json` 的 `AssemblyVersion`**（三處同步）
 2. `dotnet build -c Release`
