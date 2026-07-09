@@ -8,81 +8,68 @@ public class ConfigWindow : Window, IDisposable
 {
     private string _licenseKeyBuf      = "";
     private string _serverBlSearchBuf  = "";
+    private float  _uiScaleDraft;   // 縮放滑桿拖曳中的暫存值，放開才套用（見 DrawDisplayTab）
 
     public ConfigWindow() : base(
+        // 不用 AlwaysAutoResize：各分頁內容高矮不一，會讓視窗切分頁時忽大忽小。
+        // 改固定尺寸（可由使用者自行拉伸並記住），分頁切換時大小維持一致；內容超出則視窗內捲動。
         "TC排名查詢 設定##TCRankCfgWin",
-        ImGuiWindowFlags.AlwaysAutoResize)
-    { }
+        ImGuiWindowFlags.None)
+    {
+        Size          = new Vector2(520, 620);
+        SizeCondition = ImGuiCond.FirstUseEver;
+        SizeConstraints = new WindowSizeConstraints
+        {
+            MinimumSize = new Vector2(480, 360),
+            MaximumSize = new Vector2(1000, 1200),
+        };
+    }
 
     public override void OnOpen()
     {
         _licenseKeyBuf     = "";
         _serverBlSearchBuf = "";
+        _uiScaleDraft      = Plugin.Configuration.UiScale;
     }
 
     public override void Draw()
     {
-        var cfg = Plugin.Configuration;
-
         ImGui.TextColored(new Vector4(1, 0.85f, 0.3f, 1), "TC Savage 排名查詢 設定");
         ImGui.Separator();
+
+        // 分頁化：原本一長串設定拆成分類分頁，最常調整的「顯示」放第一個。
+        if (!ImGui.BeginTabBar("##cfgTabs")) return;
+
+        if (ImGui.BeginTabItem("顯示"))          { DrawDisplayTab();   ImGui.EndTabItem(); }
+        if (ImGui.BeginTabItem("金鑰"))          { DrawLicenseTab();   ImGui.EndTabItem(); }
+        if (ImGui.BeginTabItem("社群 / 黑名單")) { DrawCommunityTab(); ImGui.EndTabItem(); }
+        if (ImGui.BeginTabItem("資料 / 狀態"))   { DrawDataTab();      ImGui.EndTabItem(); }
+
+        ImGui.EndTabBar();
+    }
+
+    // ── 顯示分頁（最常用）：整體縮放、排名視窗顯示選項、額外欄位、通知 ─────────────
+    private void DrawDisplayTab()
+    {
+        var cfg = Plugin.Configuration;
         ImGui.Spacing();
 
-        // ── 許可證金鑰 ─────────────────────────────────────────────────────
-        ImGui.TextColored(new Vector4(0.7f, 1f, 0.7f, 1), "許可證金鑰");
+        // 整體 UI 縮放（字體＋icon）
+        ImGui.TextColored(new Vector4(0.7f, 1f, 0.7f, 1), "外觀");
         ImGui.Spacing();
-
-        if (cfg.GetLicenseKey() != null)
-            ImGui.TextColored(new Vector4(0.4f, 1f, 0.4f, 1), "✓ 已設定");
-        else
-            ImGui.TextColored(new Vector4(1f, 0.5f, 0.5f, 1), "✗ 尚未設定");
-
-        ImGui.Spacing();
-        ImGui.SetNextItemWidth(340);
-        ImGui.InputText("##licenseKey", ref _licenseKeyBuf, 64, ImGuiInputTextFlags.Password);
-        ImGui.SameLine();
-        if (ImGui.Button("儲存##lk"))
-        {
-            if (!string.IsNullOrWhiteSpace(_licenseKeyBuf))
-            {
-                cfg.SetLicenseKey(_licenseKeyBuf.Trim());
-                cfg.Save();
-                _licenseKeyBuf = "";
-            }
-        }
-        ImGui.SameLine();
-        if (ImGui.Button("清除##lk"))
-        {
-            _licenseKeyBuf = "";
-            cfg.ClearLicenseKey();
-            cfg.Save();
-        }
+        // 拖曳滑桿只更新暫存值；放開滑桿才寫回設定並觸發字型重建。
+        // 因為切換倍率會重建字型圖集（成本較高），逐幀重建會嚴重卡頓，故只在放開時套用一次。
+        ImGui.SetNextItemWidth(220);
+        ImGui.SliderFloat("整體字體 / icon 大小", ref _uiScaleDraft, 0.8f, 2.0f, "%.2fx");
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("同時放大／縮小主視窗、招募、履歷三個視窗的文字與職業 icon\n（放開滑桿後套用）");
+        if (ImGui.IsItemDeactivatedAfterEdit() && Math.Abs(_uiScaleDraft - cfg.UiScale) > 0.001f)
+        { cfg.UiScale = _uiScaleDraft; cfg.Save(); }
 
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
 
-        // ── 通知 ───────────────────────────────────────────────────────────
-        ImGui.TextColored(new Vector4(0.7f, 1f, 0.7f, 1), "通知");
-        ImGui.Spacing();
-
-        var chatNotify = cfg.ChatNotifyOnJoin;
-        if (ImGui.Checkbox("隊友加入時，在聊天框顯示排名通知", ref chatNotify))
-        { cfg.ChatNotifyOnJoin = chatNotify; cfg.Save(); }
-
-        var autoOpen = cfg.AutoOpenWindow;
-        if (ImGui.Checkbox("隊友加入時，自動開啟排名視窗", ref autoOpen))
-        { cfg.AutoOpenWindow = autoOpen; cfg.Save(); }
-
-        var notifyUnranked = cfg.NotifyUnranked;
-        if (ImGui.Checkbox("未上榜的隊友也顯示通知", ref notifyUnranked))
-        { cfg.NotifyUnranked = notifyUnranked; cfg.Save(); }
-
-        ImGui.Spacing();
-        ImGui.Separator();
-        ImGui.Spacing();
-
-        // ── 排名視窗顯示 ───────────────────────────────────────────────────
         ImGui.TextColored(new Vector4(0.7f, 1f, 0.7f, 1), "排名視窗顯示");
         ImGui.Spacing();
 
@@ -104,7 +91,6 @@ public class ConfigWindow : Window, IDisposable
 
         ImGui.Spacing();
 
-        // ── 顯示欄位（可自選要在表格額外顯示的次要指標）────────────────────────
         ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1), "額外顯示欄位（未勾選者仍可在懸浮提示看到）");
         ImGui.Spacing();
         var extra = new HashSet<string>(cfg.ExtraColumns);
@@ -133,20 +119,62 @@ public class ConfigWindow : Window, IDisposable
         ImGui.Separator();
         ImGui.Spacing();
 
-        // ── 快取 ───────────────────────────────────────────────────────────
-        ImGui.TextColored(new Vector4(0.7f, 1f, 0.7f, 1), "資料快取");
+        ImGui.TextColored(new Vector4(0.7f, 1f, 0.7f, 1), "通知");
         ImGui.Spacing();
 
-        var cacheMin = cfg.CacheRefreshMinutes;
-        ImGui.SetNextItemWidth(130);
-        if (ImGui.SliderInt("自動更新間隔（分鐘）", ref cacheMin, 60, 1440))
-        { cfg.CacheRefreshMinutes = cacheMin; cfg.Save(); }
+        var chatNotify = cfg.ChatNotifyOnJoin;
+        if (ImGui.Checkbox("隊友加入時，在聊天框顯示排名通知", ref chatNotify))
+        { cfg.ChatNotifyOnJoin = chatNotify; cfg.Save(); }
+
+        var autoOpen = cfg.AutoOpenWindow;
+        if (ImGui.Checkbox("隊友加入時，自動開啟排名視窗", ref autoOpen))
+        { cfg.AutoOpenWindow = autoOpen; cfg.Save(); }
+
+        var notifyUnranked = cfg.NotifyUnranked;
+        if (ImGui.Checkbox("未上榜的隊友也顯示通知", ref notifyUnranked))
+        { cfg.NotifyUnranked = notifyUnranked; cfg.Save(); }
+    }
+
+    // ── 金鑰分頁 ────────────────────────────────────────────────────────────────
+    private void DrawLicenseTab()
+    {
+        var cfg = Plugin.Configuration;
+        ImGui.Spacing();
+        ImGui.TextColored(new Vector4(0.7f, 1f, 0.7f, 1), "許可證金鑰");
+        ImGui.Spacing();
+
+        if (cfg.GetLicenseKey() != null)
+            ImGui.TextColored(new Vector4(0.4f, 1f, 0.4f, 1), "✓ 已設定");
+        else
+            ImGui.TextColored(new Vector4(1f, 0.5f, 0.5f, 1), "✗ 尚未設定");
 
         ImGui.Spacing();
-        ImGui.Separator();
-        ImGui.Spacing();
+        ImGui.SetNextItemWidth(340);
+        ImGui.InputText("##licenseKey", ref _licenseKeyBuf, 64, ImGuiInputTextFlags.Password);
+        ImGui.SameLine();
+        if (ImGui.Button("儲存##lk"))
+        {
+            if (!string.IsNullOrWhiteSpace(_licenseKeyBuf))
+            {
+                cfg.SetLicenseKey(_licenseKeyBuf.Trim());
+                cfg.Save();
+                _licenseKeyBuf = "";
+            }
+        }
+        ImGui.SameLine();
+        if (ImGui.Button("清除##lk"))
+        {
+            _licenseKeyBuf = "";
+            cfg.ClearLicenseKey();
+            cfg.Save();
+        }
+    }
 
-        // ── 社群資料同步 ───────────────────────────────────────────────────────
+    // ── 社群 / 黑名單分頁 ────────────────────────────────────────────────────────
+    private void DrawCommunityTab()
+    {
+        var cfg = Plugin.Configuration;
+        ImGui.Spacing();
         ImGui.TextColored(new Vector4(0.7f, 1f, 0.7f, 1), "社群資料同步");
         ImGui.Spacing();
         ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.85f, 0.4f, 1));
@@ -183,7 +211,6 @@ public class ConfigWindow : Window, IDisposable
 
         ImGui.Spacing();
 
-        // ── 手動同步按鈕 ──────────────────────────────────────────────────────
         if (Plugin.IsSyncing)
         {
             ImGui.BeginDisabled();
@@ -209,7 +236,6 @@ public class ConfigWindow : Window, IDisposable
         ImGui.Separator();
         ImGui.Spacing();
 
-        // ── 黑名單 ─────────────────────────────────────────────────────────
         ImGui.TextColored(new Vector4(0.7f, 1f, 0.7f, 1), "黑名單");
         ImGui.Spacing();
         var blTotal = Plugin.BlacklistService.ServerCount > 0
@@ -234,16 +260,28 @@ public class ConfigWindow : Window, IDisposable
             catch (Exception ex) { Plugin.Log.Warning(ex, "[Blacklist] 開啟檔案失敗"); }
         }
 
-        // ── 檢視 server 黑名單清單 ────────────────────────────────────────────
         ImGui.Spacing();
         if (ImGui.CollapsingHeader($"檢視 server 共享黑名單（{Plugin.BlacklistService.ServerCount} 筆）##srvBl"))
             DrawServerBlacklistTable();
+    }
+
+    // ── 資料 / 狀態分頁 ─────────────────────────────────────────────────────────
+    private void DrawDataTab()
+    {
+        var cfg = Plugin.Configuration;
+        ImGui.Spacing();
+        ImGui.TextColored(new Vector4(0.7f, 1f, 0.7f, 1), "資料快取");
+        ImGui.Spacing();
+
+        var cacheMin = cfg.CacheRefreshMinutes;
+        ImGui.SetNextItemWidth(130);
+        if (ImGui.SliderInt("自動更新間隔（分鐘）", ref cacheMin, 60, 1440))
+        { cfg.CacheRefreshMinutes = cacheMin; cfg.Save(); }
 
         ImGui.Spacing();
         ImGui.Separator();
         ImGui.Spacing();
 
-        // ── 狀態資訊 ───────────────────────────────────────────────────────
         ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1),
             $"狀態：{Plugin.RankingService.Status}");
         ImGui.TextColored(new Vector4(0.6f, 0.6f, 0.6f, 1),

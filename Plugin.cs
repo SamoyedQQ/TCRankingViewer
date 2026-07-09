@@ -25,10 +25,12 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IGameConfig            GameConfig          { get; private set; } = null!;
     [PluginService] internal static IDataManager           DataManager         { get; private set; } = null!;
     [PluginService] internal static IContextMenu           ContextMenu         { get; private set; } = null!;
+    [PluginService] internal static ITextureProvider       TextureProvider     { get; private set; } = null!;
 
     // ── Plugin-owned Services ───────────────────────────────────────────────
 #pragma warning disable CS8618
     public static Configuration        Configuration        { get; private set; }
+    public static ScaledFont           ScaledFont           { get; private set; }
     public static RankingService       RankingService       { get; private set; }
     public static BlacklistService     BlacklistService     { get; private set; }
     public static CidCache             CidCache             { get; private set; }
@@ -49,6 +51,7 @@ public sealed class Plugin : IDalamudPlugin
     public Plugin()
     {
         Configuration    = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        ScaledFont       = new ScaledFont();
         RankingService   = new RankingService();
         BlacklistService = new BlacklistService();
         CidCache         = new CidCache();
@@ -102,6 +105,7 @@ public sealed class Plugin : IDalamudPlugin
         PlayerHistoryWindow.Dispose();
         PartyWatcher.Dispose();
         RankingService.Dispose();
+        ScaledFont.Dispose();
         CommandManager.RemoveHandler(CommandName);
         PluginInterface.UiBuilder.Draw         -= DrawUI;
         PluginInterface.UiBuilder.OpenMainUi   -= ToggleMainUI;

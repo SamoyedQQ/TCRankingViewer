@@ -18,6 +18,11 @@ public class Configuration : IPluginConfiguration
     public bool NotifyUnranked      { get; set; } = false;
 
     // ── 排名視窗顯示 / 截圖 ─────────────────────────────────────────────────────
+    // 整體 UI 縮放：字體與職業 icon 一起放大／縮小（各視窗以 ScaledFont 於目標字級重建清晰字型套用）。
+    // 預設 1.1（比原本大 10%）；範圍夾在 0.8~2.0，避免過小不可讀或過大破版。
+    public float UiScale { get; set; } = 1.1f;
+    public float GetUiScale() => Math.Clamp(UiScale, 0.8f, 2.0f);
+
     // 「無備註」的黑名單玩家視為未黑單（正常顯示、不標記），而非隱藏該列
     public bool IgnoreBlacklistNoNote { get; set; } = false;
     public bool MaskIdOnScreenshot    { get; set; } = false; // 截圖時把玩家名稱打碼
@@ -28,8 +33,8 @@ public class Configuration : IPluginConfiguration
     public bool AutoResolveViaCharaCard { get; set; } = true;
 
     // 使用者自選要在表格中額外顯示的次要指標欄（key 見 RankCells.OptionalColumns）。
-    // 未列入者仍可在懸浮提示看到。預設顯示 GCD 與死亡數，讓新指標開箱即見。
-    public List<string> ExtraColumns { get; set; } = ["GCD", "deaths"];
+    // 未列入者仍可在懸浮提示看到。預設顯示 aDPS / GCD%（作場銜接）/ 死亡數，開箱即見常用指標。
+    public List<string> ExtraColumns { get; set; } = ["aDPS", "uptime", "deaths"];
 
     // 回傳「合法且去重、依 OptionalColumns 固定順序」的欄位清單，避免舊設定殘留無效 key。
     public List<string> GetExtraColumns()

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Dalamud.NET.Sdk/14.0.1">
   <PropertyGroup>
-    <Version>1.0.6.2</Version>
+    <Version>1.0.6.3</Version>
     <Description>自動從 TC 繁中服排名查詢隊友 Savage 排名。</Description>
     <PackageProjectUrl>https://github.com/SamoyedQQ/TCRankingViewer</PackageProjectUrl>
     <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
@@ -21,6 +21,11 @@
     <Content Include="assets\icon.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <TargetPath>icon.png</TargetPath>
+    </Content>
+    <!-- 手動放入 assets\jobs\ 的職業 icon 圖檔，打包到輸出 jobs\ 子夾（見 assets\jobs\README.txt） -->
+    <Content Include="assets\jobs\*.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>jobs\%(Filename)%(Extension)</TargetPath>
     </Content>
   </ItemGroup>
 

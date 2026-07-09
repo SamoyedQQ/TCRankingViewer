@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Text.Json.Serialization;
 
 namespace TCRankingViewer;
@@ -305,6 +306,13 @@ public static class JobAbbrev
         { 39, "鐮魂" }, { 41, "蝰蛇" },
         { 23, "詩人" }, { 31, "機工" }, { 38, "舞者" },
         { 25, "黑魔" }, { 27, "召喚" }, { 35, "赤魔" }, { 42, "繪靈" },
+        // 生產（DoH）／採集（DoL）職：不會出現在排名戰績，只在招募「現職」欄需顯示 icon
+        { 8, "刻木" }, { 9, "鍛鐵" }, { 10, "鑄甲" }, { 11, "雕金" },
+        { 12, "製革" }, { 13, "裁縫" }, { 14, "煉金" }, { 15, "烹調" },
+        { 16, "採礦" }, { 17, "園藝" }, { 18, "捕魚" },
+        // 基礎職＋青魔：同樣只在招募「現職」欄可能遇到
+        { 1, "劍術" }, { 2, "格鬥" }, { 3, "斧術" }, { 4, "槍術" }, { 5, "弓箭" },
+        { 6, "幻術" }, { 7, "咒術" }, { 26, "秘術" }, { 29, "雙劍" }, { 36, "青魔" },
     };
 
     public static string Get(string jobFullName)
@@ -317,6 +325,14 @@ public static class JobAbbrev
     {
         return JobIdMap.TryGetValue(jobId, out var abbrev) ? abbrev : "";
     }
+
+    // 職業縮寫 → jobId（ClassJob RowId），由 JobIdMap 反轉而來，供職業 icon 查表
+    private static readonly Dictionary<string, byte> AbbrevToId =
+        JobIdMap.ToDictionary(kv => kv.Value, kv => kv.Key);
+
+    // 由 FFLogs 職業名（英文全名）取得 jobId；查不到回 0
+    public static byte GetJobId(string jobFullName)
+        => AbbrevToId.TryGetValue(Get(jobFullName), out var id) ? id : (byte)0;
 }
 
 // ─── 共享黑名單條目（server sync 用）────────────────────────────────────────

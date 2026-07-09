@@ -29,6 +29,10 @@ public class MainWindow : Window, IDisposable
     private static readonly Dictionary<string, Vector4> JobColors = RankColors.JobColors;
 
     private readonly HashSet<string> _expandedPlayers = new();
+
+    // 職業 icon 去重用：同職業連續列只在第一列顯示 icon。以「單一成員（及其分類區塊）」為範圍，
+    // 每位成員／每個分類群組開始前歸零，避免跨成員誤藏職業。
+    private byte _prevJobIcon;
     private string _categoryFilter = "全部";
     private List<string> _extra = [];   // 本次繪製套用的可選欄（每幀由設定讀取）
 
@@ -47,6 +51,9 @@ public class MainWindow : Window, IDisposable
 
     public override void Draw()
     {
+        // 整體字體＋icon 縮放：以實際字級重建的清晰字型（見 ScaledFont），全程 using 包住繪製。
+        using var _font = Plugin.ScaledFont.Push();
+
         DrawToolbar();
         ImGui.Separator();
         DrawCategoryTabs();
@@ -248,12 +255,13 @@ public class MainWindow : Window, IDisposable
 
         ImGui.TableSetupScrollFreeze(0, 1);
         ImGui.TableSetupColumn("玩家名稱", ImGuiTableColumnFlags.WidthFixed);
-        ImGui.TableSetupColumn("職業",     ImGuiTableColumnFlags.WidthFixed,   52f);
+        ImGui.TableSetupColumn("##job",    ImGuiTableColumnFlags.WidthFixed,   RankCells.JobIconColumnWidth);
         ImGui.TableSetupColumn("副本",     ImGuiTableColumnFlags.WidthFixed);
         ImGui.TableSetupColumn("名次",     ImGuiTableColumnFlags.WidthFixed,   52f);
         ImGui.TableSetupColumn("PR",       ImGuiTableColumnFlags.WidthFixed,   40f);
-        ImGui.TableSetupColumn("rDPS%",    ImGuiTableColumnFlags.WidthFixed,   58f);
-        ImGui.TableSetupColumn("rDPS",     ImGuiTableColumnFlags.WidthFixed,   70f);
+        // rDPS% / rDPS 依內容自動貼合（進度列顯示較長的「剩HP XX%」「完成 XX%」，且隨字級縮放）
+        ImGui.TableSetupColumn("rDPS%",    ImGuiTableColumnFlags.WidthFixed);
+        ImGui.TableSetupColumn("rDPS",     ImGuiTableColumnFlags.WidthFixed);
         foreach (var key in _extra)
             ImGui.TableSetupColumn(RankCells.OptionalHeader(key),
                 ImGuiTableColumnFlags.WidthFixed, RankCells.OptionalWidth(key));
@@ -293,6 +301,7 @@ public class MainWindow : Window, IDisposable
 
             var isBlacklisted = Plugin.BlacklistService.IsMarked(member.CharacterName);
             var nameColor = isBlacklisted ? Red : (member.IsSelf ? Gold : White);
+            ImGui.AlignTextToFramePadding();   // 名字與同列箭頭/icon 垂直置中，不靠上飄
             ImGui.TextColored(nameColor, (member.IsSelf ? "★ " : "") + member.CharacterName);
             // 左鍵點名字開啟該玩家履歷視窗（與右鍵選單同一功能）
             if (ImGui.IsItemHovered()) ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
@@ -317,18 +326,19 @@ public class MainWindow : Window, IDisposable
 
             if (best == null)
             {
-                ImGui.TableSetColumnIndex(1); ImGui.TextColored(Dim, "─");
+                ImGui.TableSetColumnIndex(1); RankCells.CellText(Dim, "─");
                 ImGui.TableSetColumnIndex(2);
-                ImGui.TextColored(Dim, member.IsFound ? "此類別無資料" : "未上榜");
-                ImGui.TableSetColumnIndex(3); ImGui.TextColored(Dim, "─");
-                ImGui.TableSetColumnIndex(4); ImGui.TextColored(Dim, "─");
-                ImGui.TableSetColumnIndex(5); ImGui.TextColored(Dim, "─");
-                ImGui.TableSetColumnIndex(6); ImGui.TextColored(Dim, "─");
+                RankCells.CellText(Dim, member.IsFound ? "此類別無資料" : "未上榜");
+                ImGui.TableSetColumnIndex(3); RankCells.CellText(Dim, "─");
+                ImGui.TableSetColumnIndex(4); RankCells.CellText(Dim, "─");
+                ImGui.TableSetColumnIndex(5); RankCells.CellText(Dim, "─");
+                ImGui.TableSetColumnIndex(6); RankCells.CellText(Dim, "─");
                 for (var i = 0; i < _extra.Count; i++)
-                { ImGui.TableSetColumnIndex(7 + i); ImGui.TextColored(Dim, "─"); }
+                { ImGui.TableSetColumnIndex(7 + i); RankCells.CellText(Dim, "─"); }
                 continue;
             }
 
+            _prevJobIcon = 0;   // 每位成員的連續列重新起算 icon 去重
             DrawEntryColumns(best);
 
             if (expanded && sorted != null)
@@ -384,6 +394,7 @@ public class MainWindow : Window, IDisposable
             for (var c = 1; c <= 6 + _extra.Count; c++)
             { ImGui.TableSetColumnIndex(c); ImGui.TextColored(Dim, ""); }
 
+            _prevJobIcon = 0;   // 每個分類區塊重新起算 icon 去重
             foreach (var e in sorted)
             {
                 ImGui.TableNextRow();
@@ -396,35 +407,37 @@ public class MainWindow : Window, IDisposable
     // 欄位：1職業 2副本 3名次 4PR 5rDPS% 6rDPS（次要指標 aDPS/GCD/… 移至副本欄的懸浮提示）
     private void DrawEntryColumns(RankingEntry e)
     {
-        var abbrev = string.IsNullOrEmpty(e.Job) ? "─" : JobAbbrev.Get(e.Job);
-        var jColor = (e.IsObsolete || e.IsProg) ? Dim : RankColors.JobColorOf(abbrev);
-
-        ImGui.TableSetColumnIndex(1); ImGui.TextColored(jColor, abbrev);
+        // 職業以 icon 呈現（風格同 FFLogsViewer）；過版本/練習中半透明淡化；同職業連續列只顯示第一個
+        var jid = JobAbbrev.GetJobId(e.Job);
+        ImGui.TableSetColumnIndex(1);
+        RankCells.DrawJobIcon(e.Job, dim: e.IsObsolete || e.IsProg, show: jid != _prevJobIcon);
+        _prevJobIcon = jid;
 
         if (e.IsProg)
         {
             ImGui.TableSetColumnIndex(2);
-            ImGui.TextColored(Dim, ShortenBossName(e.Boss));
+            RankCells.CellText(Dim, ShortenBossName(e.Boss));
             var phase = !string.IsNullOrEmpty(e.FurthestPhase) ? e.FurthestPhase : "進度中";
             // ImGui 文字以 printf 解析，字面 % 需寫成 %% 才會顯示
-            ImGui.TableSetColumnIndex(3); ImGui.TextColored(Teal, phase);
-            ImGui.TableSetColumnIndex(4); ImGui.TextColored(Dim, "─");
-            ImGui.TableSetColumnIndex(5); ImGui.TextColored(Dim, "─");
-            ImGui.TableSetColumnIndex(6); ImGui.TextColored(Teal, $"完成 {100 - e.FightPct:F1}%%");
+            // rDPS% 欄改顯示當前相位 boss 剩餘血量、rDPS 欄顯示整體完成度
+            ImGui.TableSetColumnIndex(3); RankCells.CellText(Teal, phase);
+            ImGui.TableSetColumnIndex(4); RankCells.CellText(Dim, "─");
+            ImGui.TableSetColumnIndex(5); RankCells.CellText(Teal, $"剩HP {e.BossPct:F1}%%");
+            ImGui.TableSetColumnIndex(6); RankCells.CellText(Teal, $"完成 {100 - e.FightPct:F1}%%");
             for (var i = 0; i < _extra.Count; i++)
             { ImGui.TableSetColumnIndex(7 + i); RankCells.DrawOptionalCell(e, _extra[i]); }
         }
         else
         {
             ImGui.TableSetColumnIndex(2);
-            ImGui.TextColored(Dim, ShortenBossName(e.Boss));
+            RankCells.CellText(Dim, ShortenBossName(e.Boss));
             RankCells.DrawSecondaryTooltip(e);   // 懸浮副本名顯示 aDPS/GCD/uptime/死亡/報告 等次要指標
 
             ImGui.TableSetColumnIndex(3);
-            ImGui.TextColored(e.IsObsolete ? Dim : RankColors.RankColor(e.Rank), $"#{e.Rank}");
+            RankCells.CellText(e.IsObsolete ? Dim : RankColors.RankColor(e.Rank), $"#{e.Rank}");
             ImGui.TableSetColumnIndex(4); RankCells.DrawPr(e);
             ImGui.TableSetColumnIndex(5); RankCells.DrawRdpsPct(e);
-            ImGui.TableSetColumnIndex(6); ImGui.TextColored(e.IsObsolete ? Dim : White, $"{e.Rdps:F0}");
+            ImGui.TableSetColumnIndex(6); RankCells.CellText(e.IsObsolete ? Dim : White, $"{e.Rdps:F0}");
             for (var i = 0; i < _extra.Count; i++)
             { ImGui.TableSetColumnIndex(7 + i); RankCells.DrawOptionalCell(e, _extra[i]); }
         }

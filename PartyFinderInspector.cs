@@ -376,24 +376,25 @@ public sealed class PartyFinderInspector : IDisposable
         // 聯盟團特別處理：Dalamud RawJobsPresent 只涵蓋 8 格，對 24 人本會少報，改用 agent
         // Detailed 的並列陣列（MemberContentIds[i] ↔ Jobs[i]）建立 cid→職業對照，交由
         // GetJobAtSlot 以 cid fallback 取職業，避免與 RawJobsPresent 的視覺槽位索引混淆。
-        string[] cachedJobs;
-        if (isAlliance)
+        // 先以 agent Detailed 的並列陣列（MemberContentIds[i] ↔ Jobs[i]）建立 cid→職業快取。
+        // 原本只有聯盟團會做這步；但一般 8 人本若只靠 Dalamud RawJobsPresent，會在該快取尚未
+        // 就緒時（剛開招募面板、清單還沒觸發 ReceiveListing）整批取不到職業，導致「現職」icon
+        // 全部消失。改為一律先補 _jobCache 作為後備，RawJobsPresent 未就緒時由 GetJobAtSlot 回退。
+        var ids  = detailed->MemberContentIds;
+        var jobs = detailed->Jobs;
+        for (var i = 0; i < ids.Length && i < jobs.Length; i++)
         {
-            var ids  = detailed->MemberContentIds;
-            var jobs = detailed->Jobs;
-            for (var i = 0; i < ids.Length && i < jobs.Length; i++)
-            {
-                var cid = ids[i];
-                if (cid == 0) continue;
-                var ab = JobAbbrev.GetByJobId(jobs[i]);
-                if (!string.IsNullOrEmpty(ab)) _jobCache[cid] = ab;
-            }
-            cachedJobs = [];
+            var cid = ids[i];
+            if (cid == 0) continue;
+            var ab = JobAbbrev.GetByJobId(jobs[i]);
+            if (!string.IsNullOrEmpty(ab)) _jobCache[cid] = ab;
         }
-        else
-        {
-            cachedJobs = _rawJobsCache.TryGetValue(leaderCid, out var rj) ? rj : [];
-        }
+
+        // 聯盟團（24 人）的 RawJobsPresent 只涵蓋 8 格會少報，直接靠上面的 _jobCache（Detailed）；
+        // 一般 8 人本優先用 RawJobsPresent（含跨服快取、較準），未就緒時再回退 _jobCache。
+        var cachedJobs = isAlliance
+            ? []
+            : (_rawJobsCache.TryGetValue(leaderCid, out var rj) ? rj : []);
 
         // 校正 filled（僅一般 8 人本）：SlotsFilled 偶爾被遊戲記憶體殘留污染（成員離開但
         // count 沒更新），此時 RawJobsPresent 較準。聯盟團不套用此校正——RawJobsPresent
