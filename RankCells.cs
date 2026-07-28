@@ -142,11 +142,11 @@ public static class RankCells
                 else ImGui.TextColored(RankColors.Dim, "—");
                 break;
             case "uptime":
-                if (e.GcdUptime is double gu) ImGui.TextColored(RankColors.White, $"{gu:F1}%%");
+                if (e.GcdUptime is double gu) ImGui.TextColored(RankColors.White, $"{gu:F1}%");
                 else ImGui.TextColored(RankColors.Dim, "—");
                 break;
             case "active":
-                if (e.ActivePercent is double ap) ImGui.TextColored(RankColors.White, $"{ap:F1}%%");
+                if (e.ActivePercent is double ap) ImGui.TextColored(RankColors.White, $"{ap:F1}%");
                 else ImGui.TextColored(RankColors.Dim, "—");
                 break;
             case "deaths":

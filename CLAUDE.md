@@ -252,6 +252,9 @@ if (ImGui.BeginPopup(popupId)) { ... ImGui.EndPopup(); }
 - `IClientState.LocalPlayer` 標記 obsolete → 改用 `IObjectTable.LocalPlayer`（新增注入 `IObjectTable`）
 - `csproj` SDK 用 `Dalamud.NET.Sdk/13.1.0`（→ net9.0），**不可用 14.x（net10）**；`System.Drawing.Common`
   維持 9.0.0（net9 執行期）。曾誤用 SDK 14 產出 net10 dll，繁中服 .NET 9 載入失敗，見上方編譯指令警告。
+- **文字非 printf**：`Dalamud.Bindings.ImGui` 的 `Text`/`TextColored` 吃 `ImU8String`，原樣輸出、**不做
+  printf 解析**。舊版 ImGui.NET 走 printf、字面 `%` 要寫 `%%`；遷移後所有 `%%` 會顯示成兩個 `%`，
+  一律改回單一 `%`（見 GCD%/剩HP%/完成% 等；曾踩此雷 v1.1.0.1）。
 
 ## Release 流程
 **工作流程**：改完程式碼後先 `dotnet build -c Release` 給使用者測試，**確認測試通過並獲得同意後**才執行 commit / push / release，不得提前發版。
@@ -266,11 +269,15 @@ if (ImGui.BeginPopup(popupId)) { ... ImGui.EndPopup(); }
 
 每次發版需：
 1. 更新 `TCRankingViewer.csproj` 的 `<Version>`、`TCRankingViewer.json` 的 `AssemblyVersion`、**`repo.json` 的 `AssemblyVersion`**（三處同步）
-2. `dotnet build -c Release`
-3. 打包插件 ZIP：
+2. 先 `rm -rf bin obj` 再 `dotnet build -c Release`（清乾淨避免 DalamudPackager 把殘留舊 zip 併進來）
+3. **打包 ZIP 一律用 DalamudPackager 自動產生的 `bin\Release\TCRankingViewer\latest.zip`**，
+   它含完整輸出（dll / json / deps / icon / ProtectedData.dll + **`jobs\*.png` 職業 icon**），複製成
+   發版檔名：
+   ```bash
+   cp "bin/Release/TCRankingViewer/latest.zip" "bin/Release/TCRankingViewer.zip"
    ```
-   Compress-Archive -Path "bin\Release\TCRankingViewer.dll","bin\Release\TCRankingViewer.json","bin\Release\icon.png" -DestinationPath "bin\Release\TCRankingViewer.zip" -Force
-   ```
+   > ⚠️ **絕不要**手動 `Compress-Archive` 只挑 dll/json/icon 三檔——那會漏掉 `jobs\` 高解析職業
+   > icon（安裝後職業圖示會退回遊戲內建 icon），也會漏 deps.json / ProtectedData.dll。曾踩此雷（v1.1.0.1）。
 4. 發版到主 repo：
    ```
    gh release create vX.X.X.X --title "vX.X.X.X" --notes "..." "bin\Release\TCRankingViewer.zip"

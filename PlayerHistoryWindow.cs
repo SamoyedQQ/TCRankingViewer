@@ -227,8 +227,8 @@ public class PlayerHistoryWindow : Window, IDisposable
 
             var phase = !string.IsNullOrEmpty(e.FurthestPhase) ? e.FurthestPhase : "進度中";
             ImGui.TableSetColumnIndex(2); RankCells.CellText(Teal, phase);
-            ImGui.TableSetColumnIndex(3); RankCells.CellText(Teal, $"{e.BossPct:F1}%%");
-            ImGui.TableSetColumnIndex(4); RankCells.CellText(Teal, $"{100 - e.FightPct:F1}%%");
+            ImGui.TableSetColumnIndex(3); RankCells.CellText(Teal, $"{e.BossPct:F1}%");
+            ImGui.TableSetColumnIndex(4); RankCells.CellText(Teal, $"{100 - e.FightPct:F1}%");
         }
 
         ImGui.EndTable();

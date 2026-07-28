@@ -219,7 +219,7 @@ public class MainWindow : Window, IDisposable
         else if (chaoticProg != null)
         {
             var cpl = !string.IsNullOrEmpty(chaoticProg.FurthestPhase) ? chaoticProg.FurthestPhase : "進度";
-            ImGui.TextColored(Teal, $"{cpl}({chaoticProg.BossPct:F1}%%)");
+            ImGui.TextColored(Teal, $"{cpl}({chaoticProg.BossPct:F1}%)");
         }
         else
         {
@@ -418,12 +418,12 @@ public class MainWindow : Window, IDisposable
             ImGui.TableSetColumnIndex(2);
             RankCells.CellText(Dim, ShortenBossName(e.Boss));
             var phase = !string.IsNullOrEmpty(e.FurthestPhase) ? e.FurthestPhase : "進度中";
-            // ImGui 文字以 printf 解析，字面 % 需寫成 %% 才會顯示
+            // Dalamud.Bindings.ImGui 的文字為原樣輸出（非 printf），字面 % 直接寫即可
             // rDPS% 欄改顯示當前相位 boss 剩餘血量、rDPS 欄顯示整體完成度
             ImGui.TableSetColumnIndex(3); RankCells.CellText(Teal, phase);
             ImGui.TableSetColumnIndex(4); RankCells.CellText(Dim, "─");
-            ImGui.TableSetColumnIndex(5); RankCells.CellText(Teal, $"剩HP {e.BossPct:F1}%%");
-            ImGui.TableSetColumnIndex(6); RankCells.CellText(Teal, $"完成 {100 - e.FightPct:F1}%%");
+            ImGui.TableSetColumnIndex(5); RankCells.CellText(Teal, $"剩HP {e.BossPct:F1}%");
+            ImGui.TableSetColumnIndex(6); RankCells.CellText(Teal, $"完成 {100 - e.FightPct:F1}%");
             for (var i = 0; i < _extra.Count; i++)
             { ImGui.TableSetColumnIndex(7 + i); RankCells.DrawOptionalCell(e, _extra[i]); }
         }
