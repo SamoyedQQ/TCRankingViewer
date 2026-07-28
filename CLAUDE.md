@@ -13,14 +13,19 @@ dotnet build -c Release
 ```
 輸出：`bin\Release\TCRankingViewer.dll`
 
-> **API13（Dalamud.NET.Sdk 14.0.1 / net10.0 / Dalamud.Bindings.ImGui）**：本插件已升級至
-> DalamudApiLevel 13，必須對「API13 的 Dalamud」編譯。SDK 預設抓 `Hooks\dev\`；若該資料夾
-> 仍是舊的 API12 Dalamud（引用 ImGui.NET），編譯會失敗。XIVLauncher 下載的 API13 Dalamud
-> 位於 `%AppData%\XIVLauncher\addon\Hooks\<版號>\`（例：`14.0.1.0`）。在 dev 尚未切到 API13 前，
-> 可用環境變數覆寫：
+> **⚠️ 必須對「繁中服的 Dalamud」編譯（Dalamud.NET.Sdk 13.1.0 / net9.0 / Dalamud.Bindings.ImGui）**
+>
+> 繁中服（XIVTheCalamity）用的是 **Dalamud 13.x**：已改用新的 `Dalamud.Bindings.ImGui` 綁定
+> （即 API13 這代），**但執行期仍是 .NET 9**（`runtime\version` = 9.0.2）。這與官方 XIVLauncher
+> 的 API13（Dalamud 14.x / **net10.0**）不同——**千萬別用 SDK 14.x 編**，那會產出 net10 的 dll，
+> 繁中服的 .NET 9 執行期會因找不到 `System.Runtime 10.0.0` 而**載入失敗**（`ReflectionTypeLoadException`）。
+>
+> 正確設定：`csproj` 用 `Dalamud.NET.Sdk/13.1.0`（→ net9.0 + Dalamud.Bindings.ImGui），
+> 並把 `DALAMUD_HOME` 指到繁中服的 Dalamud 參考庫再編譯：
 > ```bash
-> DALAMUD_HOME="$APPDATA/XIVLauncher/addon/Hooks/14.0.1.0" dotnet build -c Release
+> DALAMUD_HOME="$APPDATA/XIVTheCalamity/dalamud/hooks/13.0.0.16-tc.20" dotnet build -c Release
 > ```
+> （SDK 預設抓 `XIVLauncher\addon\Hooks\dev\`，那是國際服的 Dalamud，副本/服別皆不符，務必覆寫。）
 
 ## 架構概覽
 
@@ -228,15 +233,15 @@ if (ImGui.BeginPopup(popupId)) { ... ImGui.EndPopup(); }
 - 各類別區塊內也用 `SortByJobThenContent`（`OrderBy(priority).ThenBy(rank)` 會跨職業交錯）
 
 ## 依賴
-- Dalamud.NET.Sdk 14.0.1（API13，net10.0-windows）
+- Dalamud.NET.Sdk 13.1.0（繁中服 Dalamud 13.x，**net9.0-windows** + Dalamud.Bindings.ImGui）
 - System.Security.Cryptography.ProtectedData 8.0.0（DPAPI 加密 license key）
-- System.Drawing.Common 10.0.0（截圖 GDI；`ExcludeAssets=runtime`，執行期沿用框架版本）
+- System.Drawing.Common 9.0.0（截圖 GDI；`ExcludeAssets=runtime`，執行期沿用框架 net9 版本）
 - ECommons（`ECommons\` 目錄，git submodule 殘留，csproj 已排除編譯）
 - ImGui：由 SDK 自動引入 `Dalamud.Bindings.ImGui`（`using Dalamud.Bindings.ImGui;`）。
-  API13 已淘汰 ImGui.NET，不再手動 `<Reference Include="ImGui.NET">`。
+  已淘汰 ImGui.NET，不再手動 `<Reference Include="ImGui.NET">`。
 
-## API13 遷移重點（2026-07）
-API12 → API13 的破壞性變更與對應修正：
+## Dalamud 13.x（新 ImGui 綁定）遷移重點（2026-07）
+從舊版（ImGui.NET）改到繁中服 Dalamud 13.x（Dalamud.Bindings.ImGui）的破壞性變更與對應修正：
 - `using ImGuiNET;` → `using Dalamud.Bindings.ImGui;`（全部 UI 檔）
 - 貼圖 handle：`IDalamudTextureWrap.ImGuiHandle`（nint）→ `.Handle`（`ImTextureID`）；
   `ImGui.Image` 首參改吃 `ImTextureID`；空值判斷改 `ImTextureID.IsNull`（見 `RankCells.cs`）
@@ -245,7 +250,8 @@ API12 → API13 的破壞性變更與對應修正：
 - `ImGuiNative.igBeginTabItem` 移除 → 改用 `ImGui.BeginTabItem(label, flags)` 重載
 - FFXIVClientStructs `InfoProxyCrossRealm.IsInCrossRealmParty` 由整數改 `bool`（去掉 `!= 0`）
 - `IClientState.LocalPlayer` 標記 obsolete → 改用 `IObjectTable.LocalPlayer`（新增注入 `IObjectTable`）
-- `System.Drawing.Common` 9.0.0 → 10.0.0（配合 net10 執行期，消除 MSB3277 版本衝突警告）
+- `csproj` SDK 用 `Dalamud.NET.Sdk/13.1.0`（→ net9.0），**不可用 14.x（net10）**；`System.Drawing.Common`
+  維持 9.0.0（net9 執行期）。曾誤用 SDK 14 產出 net10 dll，繁中服 .NET 9 載入失敗，見上方編譯指令警告。
 
 ## Release 流程
 **工作流程**：改完程式碼後先 `dotnet build -c Release` 給使用者測試，**確認測試通過並獲得同意後**才執行 commit / push / release，不得提前發版。
