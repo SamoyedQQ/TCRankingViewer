@@ -1,6 +1,6 @@
 using Dalamud.Interface;
 using Dalamud.Interface.ManagedFontAtlas;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 
 namespace TCRankingViewer;
 

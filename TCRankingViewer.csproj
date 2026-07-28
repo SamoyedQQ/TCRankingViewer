@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Dalamud.NET.Sdk/14.0.1">
   <PropertyGroup>
-    <Version>1.0.6.3</Version>
+    <Version>1.1.0.0</Version>
     <Description>自動從 TC 繁中服排名查詢隊友 Savage 排名。</Description>
     <PackageProjectUrl>https://github.com/SamoyedQQ/TCRankingViewer</PackageProjectUrl>
     <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
@@ -32,12 +32,11 @@
   <ItemGroup>
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
     <!-- 截圖功能：以 GDI CopyFromScreen 擷取視窗範圍並存成 PNG（Windows-only，遊戲本就 Windows）。
-         Dalamud 執行期已載入 System.Drawing.Common 9.0.0，故 ExcludeAssets=runtime 不重複打包，
-         只用其編譯參考、執行期沿用 Dalamud 提供的版本，避免版本衝突。 -->
-    <PackageReference Include="System.Drawing.Common" Version="9.0.0" ExcludeAssets="runtime" />
+         API13 改 net10.0 後執行期載入的是 System.Drawing.Common 10.0.0，故版本同步升至 10.0.0；
+         ExcludeAssets=runtime 不重複打包，只用其編譯參考、執行期沿用框架提供的版本，避免版本衝突。 -->
+    <PackageReference Include="System.Drawing.Common" Version="10.0.0" ExcludeAssets="runtime" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Reference Include="ImGui.NET" Private="false" />
-  </ItemGroup>
+  <!-- API13：ImGui bindings 改由 Dalamud.NET.Sdk 自動引入 Dalamud.Bindings.ImGui，
+       不再手動 Reference 舊的 ImGui.NET。 -->
 </Project>

@@ -1,7 +1,7 @@
 using System.Numerics;
 using Dalamud.Interface;
 using Dalamud.Interface.Textures;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 
 namespace TCRankingViewer;
 
@@ -64,16 +64,17 @@ public static class RankCells
         if (jobId == 0) { ImGui.Dummy(sz); return; }
 
         // 先試打包的高解析圖檔；缺檔才回退遊戲內建 icon
-        nint handle = 0;
+        // API13：貼圖 handle 由 nint 改為 ImTextureID（wrap.Handle），供 ImGui.Image 直接使用
+        ImTextureID handle = default;
         if (JobCode.TryGetValue(jobId, out var code))
         {
             var path = Path.Combine(JobsDir, code + ".png");
             if (File.Exists(path))
-                handle = Plugin.TextureProvider.GetFromFile(path).GetWrapOrEmpty().ImGuiHandle;
+                handle = Plugin.TextureProvider.GetFromFile(path).GetWrapOrEmpty().Handle;
         }
-        if (handle == 0)
+        if (handle.IsNull)
             handle = Plugin.TextureProvider
-                .GetFromGameIcon(new GameIconLookup(62100u + jobId)).GetWrapOrEmpty().ImGuiHandle;
+                .GetFromGameIcon(new GameIconLookup(62100u + jobId)).GetWrapOrEmpty().Handle;
 
         var tint = dim ? new Vector4(1f, 1f, 1f, 0.4f) : Vector4.One;
         ImGui.Image(handle, sz, Vector2.Zero, Vector2.One, tint);

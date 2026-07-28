@@ -13,6 +13,15 @@ dotnet build -c Release
 ```
 輸出：`bin\Release\TCRankingViewer.dll`
 
+> **API13（Dalamud.NET.Sdk 14.0.1 / net10.0 / Dalamud.Bindings.ImGui）**：本插件已升級至
+> DalamudApiLevel 13，必須對「API13 的 Dalamud」編譯。SDK 預設抓 `Hooks\dev\`；若該資料夾
+> 仍是舊的 API12 Dalamud（引用 ImGui.NET），編譯會失敗。XIVLauncher 下載的 API13 Dalamud
+> 位於 `%AppData%\XIVLauncher\addon\Hooks\<版號>\`（例：`14.0.1.0`）。在 dev 尚未切到 API13 前，
+> 可用環境變數覆寫：
+> ```bash
+> DALAMUD_HOME="$APPDATA/XIVLauncher/addon/Hooks/14.0.1.0" dotnet build -c Release
+> ```
+
 ## 架構概覽
 
 | 檔案 | 職責 |
@@ -186,7 +195,7 @@ Active state 由三個欄位管理：
 
 ### PartyFinderWindow
 - `PreDraw`：每幀把視窗位置釘在 LookingForGroupDetail 右側
-- **Tab 切換**：`SetInitialCategoryFilter` 設 `_pendingCategory`；`DrawCategoryTabs` 第一幀以 `ImGuiTabItemFlags.SetSelected` 強制切換，之後清除。此 SDK 無 `(string, flags)` 重載，改呼叫 `ImGuiNative.igBeginTabItem`
+- **Tab 切換**：`SetInitialCategoryFilter` 設 `_pendingCategory`；`DrawCategoryTabs` 第一幀以 `ImGuiTabItemFlags.SetSelected` 強制切換，之後清除。API13 的 `Dalamud.Bindings.ImGui` 提供 `ImGui.BeginTabItem(label, flags)` 重載（內部即以 null p_open 呼叫），故直接使用，不再手動呼叫 native
 - **摺疊/展開**：摺疊時優先顯示與當前副本 boss 相符的條目（`EncounterMeta.GetBossFragmentForDutyName`）；展開時回到 `SortByJobThenContent` 順序
 - **TC 零式名稱**：`ContentFinderCondition.Name` 格式為「阿卡狄亞零式登天門技場 輕量級N」，以 `"輕量級N"` 比對並回傳對應 "MNS" fragment
 
@@ -219,10 +228,24 @@ if (ImGui.BeginPopup(popupId)) { ... ImGui.EndPopup(); }
 - 各類別區塊內也用 `SortByJobThenContent`（`OrderBy(priority).ThenBy(rank)` 會跨職業交錯）
 
 ## 依賴
-- Dalamud.NET.Sdk 14.0.1
+- Dalamud.NET.Sdk 14.0.1（API13，net10.0-windows）
 - System.Security.Cryptography.ProtectedData 8.0.0（DPAPI 加密 license key）
+- System.Drawing.Common 10.0.0（截圖 GDI；`ExcludeAssets=runtime`，執行期沿用框架版本）
 - ECommons（`ECommons\` 目錄，git submodule 殘留，csproj 已排除編譯）
-- ImGui.NET（Private=false）
+- ImGui：由 SDK 自動引入 `Dalamud.Bindings.ImGui`（`using Dalamud.Bindings.ImGui;`）。
+  API13 已淘汰 ImGui.NET，不再手動 `<Reference Include="ImGui.NET">`。
+
+## API13 遷移重點（2026-07）
+API12 → API13 的破壞性變更與對應修正：
+- `using ImGuiNET;` → `using Dalamud.Bindings.ImGui;`（全部 UI 檔）
+- 貼圖 handle：`IDalamudTextureWrap.ImGuiHandle`（nint）→ `.Handle`（`ImTextureID`）；
+  `ImGui.Image` 首參改吃 `ImTextureID`；空值判斷改 `ImTextureID.IsNull`（見 `RankCells.cs`）
+- `IGameGui.GetAddonByName` 回傳 `AtkUnitBasePtr` 包裝結構（非 nint）；取原始指標用 `.Address`
+  （`(AtkUnitBase*)addonPtr.Address`，見 `PartyFinderWindow.cs`）
+- `ImGuiNative.igBeginTabItem` 移除 → 改用 `ImGui.BeginTabItem(label, flags)` 重載
+- FFXIVClientStructs `InfoProxyCrossRealm.IsInCrossRealmParty` 由整數改 `bool`（去掉 `!= 0`）
+- `IClientState.LocalPlayer` 標記 obsolete → 改用 `IObjectTable.LocalPlayer`（新增注入 `IObjectTable`）
+- `System.Drawing.Common` 9.0.0 → 10.0.0（配合 net10 執行期，消除 MSB3277 版本衝突警告）
 
 ## Release 流程
 **工作流程**：改完程式碼後先 `dotnet build -c Release` 給使用者測試，**確認測試通過並獲得同意後**才執行 commit / push / release，不得提前發版。

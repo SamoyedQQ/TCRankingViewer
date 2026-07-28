@@ -6,7 +6,7 @@ using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Windowing;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using ImGuiNET;
+using Dalamud.Bindings.ImGui;
 
 namespace TCRankingViewer;
 
@@ -88,7 +88,7 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
             return;
         }
 
-        var addon  = (AtkUnitBase*)addonPtr;
+        var addon  = (AtkUnitBase*)addonPtr.Address;
         var addonX = (float)addon->X;
         var addonY = (float)addon->Y;
         var addonW = (float)addon->GetScaledWidth(true);
@@ -212,16 +212,12 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
         ImGui.EndTabBar();
     }
 
-    // ImGui.NET in this Dalamud SDK has no (string, flags) overload — call native directly
-    // so we can pass null for p_open (no close button) while still supplying flags.
+    // API13 的 Dalamud.Bindings.ImGui 提供 (label, flags) 重載，內部即以 null p_open 呼叫，
+    // 正是「無關閉鈕但可帶 flags」所需，故不再手動呼叫 native。
     private static bool TabItem(string label, bool forceSelect)
     {
         var flags = forceSelect ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.None;
-        var byteCount = System.Text.Encoding.UTF8.GetByteCount(label);
-        byte* pLabel = stackalloc byte[byteCount + 1];
-        System.Text.Encoding.UTF8.GetBytes(label, new Span<byte>(pLabel, byteCount));
-        pLabel[byteCount] = 0;
-        return ImGuiNative.igBeginTabItem(pLabel, null, flags) != 0;
+        return ImGui.BeginTabItem(label, flags);
     }
 
     private List<RankingEntry> FilterEntries(List<RankingEntry> entries) => _categoryFilter switch
@@ -760,7 +756,7 @@ public sealed unsafe class PartyFinderWindow : Window, IDisposable
         pos = default; size = default;
         var addonPtr = Plugin.GameGui.GetAddonByName("LookingForGroupDetail", 1);
         if (addonPtr == nint.Zero) return false;
-        var addon = (AtkUnitBase*)addonPtr;
+        var addon = (AtkUnitBase*)addonPtr.Address;
         pos  = new Vector2(addon->X, addon->Y);
         size = new Vector2(addon->GetScaledWidth(true), addon->GetScaledHeight(true));
         return size is { X: > 0, Y: > 0 };

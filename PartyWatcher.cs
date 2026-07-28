@@ -47,7 +47,7 @@ public class PartyWatcher : IDisposable
 
         // 跨伺服器隊伍（InfoProxyCrossRealm）
         var proxy = InfoProxyCrossRealm.Instance();
-        if (proxy != null && proxy->IsInCrossRealmParty != 0)
+        if (proxy != null && proxy->IsInCrossRealmParty)
         {
             for (var g = 0; g < proxy->GroupCount; g++)
             {
@@ -105,7 +105,8 @@ public class PartyWatcher : IDisposable
 
     private void RebuildResults(HashSet<string> currentNames)
     {
-        var local     = Plugin.ClientState.LocalPlayer;
+        // API13：IClientState.LocalPlayer 已標記 obsolete，改用 IObjectTable.LocalPlayer
+        var local     = Plugin.ObjectTable.LocalPlayer;
         var localName = local?.Name?.TextValue ?? "";
 
         var fresh = new List<PartyMemberResult>();
