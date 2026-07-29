@@ -2,42 +2,42 @@
   "modules": {
     "forked_tower": {
       "config": {
-        "title": "两歧塔设置",
+        "title": "兩歧塔設定",
         "draw_potential_trap_positions": {
-          "label": "显示隐藏陷阱位置",
-          "tooltip": "启用范围内陷阱生成位置的显示功能"
+          "label": "顯示隱藏陷阱位置",
+          "tooltip": "啟用範圍內陷阱生成位置的顯示功能"
         },
         "draw_simple_mode": {
-          "label": "简易绘制模式",
-          "tooltip": "以轮廓线方式显示陷阱位置"
+          "label": "簡易繪製模式",
+          "tooltip": "以輪廓線方式顯示陷阱位置"
         },
         "draw_outline_for_complex_mode": {
-          "label": "复杂模式绘制",
-          "tooltip": "使用复杂渲染器绘制，这样你就可以透过墙壁看到它们"
+          "label": "複雜模式繪製",
+          "tooltip": "使用複雜渲染器繪製，這樣你就可以透過牆壁看到它們"
         },
         "trap_draw_range": {
-          "label": "陷阱显示范围",
-          "tooltip": "显示玩家周围已知陷阱的半径（单位：米）"
+          "label": "陷阱顯示範圍",
+          "tooltip": "顯示玩家周圍已知陷阱的半徑（單位：米）"
         },
         "trap_draw_color": {
-          "label": "常规陷阱颜色",
-          "tooltip": "用于显示常规陷阱标记的颜色"
+          "label": "常規陷阱顏色",
+          "tooltip": "用於顯示常規陷阱標記的顏色"
         },
         "big_trap_draw_color": {
-          "label": "大型陷阱颜色",
-          "tooltip": "用于显示大型或更危险陷阱标记的颜色"
+          "label": "大型陷阱顏色",
+          "tooltip": "用於顯示大型或更危險陷阱標記的顏色"
         },
         "draw_small_trap_range": {
-          "label": "显示小型陷阱爆炸范围",
-          "tooltip": "仅对已发现的陷阱生效（范围仍在最终确定中）"
+          "label": "顯示小型陷阱爆炸範圍",
+          "tooltip": "僅對已發現的陷阱生效（範圍仍在最終確定中）"
         },
         "draw_big_trap_range": {
-          "label": "显示大型陷阱爆炸范围",
-          "tooltip": "仅对已发现的陷阱生效（范围仍在最终确定中）"
+          "label": "顯示大型陷阱爆炸範圍",
+          "tooltip": "僅對已發現的陷阱生效（範圍仍在最終確定中）"
         },
         "stop_rendering_complete_groups": {
-          "label": "停止显示已被探出的陷阱",
-          "tooltip": "停止绘制已被探出的陷阱位置（此功能正在开发中）"
+          "label": "停止顯示已被探出的陷阱",
+          "tooltip": "停止繪製已被探出的陷阱位置（此功能正在開發中）"
         }
       }
     }

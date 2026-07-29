@@ -2,15 +2,15 @@
   "modules": {
     "currency": {
       "config": {
-        "title": "货币设置"
+        "title": "貨幣設定"
       },
       "panel": {
-        "title": "货币",
+        "title": "貨幣",
         "silver": {
-          "label": "每小时银币"
+          "label": "每小時銀幣"
         },
         "gold": {
-          "label": "每小时金币"
+          "label": "每小時金幣"
         }
       }
     }

@@ -1,11 +1,11 @@
 {
   "hunter": {
-    "progress": "进度",
-    "distance_shard": "以太之光的距离",
-    "elapsed": null,
+    "progress": "進度",
+    "distance_shard": "以太之光的距離",
+    "elapsed": "經過時間",
     "export": {
-      "label": "导出路径为JSON",
-      "tooltip": "将当前/上次路径以JSON格式导出至剪贴板"
+      "label": "匯出路徑為JSON",
+      "tooltip": "將目前/上次路徑以JSON格式匯出至剪貼簿"
     }
   }
 }

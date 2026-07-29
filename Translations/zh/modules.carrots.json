@@ -2,26 +2,26 @@
   "modules": {
     "carrots": {
       "panel": {
-        "title": "胡萝卜",
-        "none": "附近没有胡萝卜。",
-        "label": "胡萝卜",
+        "title": "胡蘿蔔",
+        "none": "附近沒有胡蘿蔔。",
+        "label": "胡蘿蔔",
         "hunt": {
-          "title": "胡萝卜猎人",
-          "distance_node": "到下一个胡萝卜的距离"
+          "title": "胡蘿蔔獵人",
+          "distance_node": "到下一個胡蘿蔔的距離"
         }
       },
       "config": {
-        "title": "胡萝卜设置",
+        "title": "胡蘿蔔設定",
         "draw_line_to_carrots": {
-          "label": "绘制到胡萝卜的线",
-          "tooltip": "从角色位置绘制一条线到附近的胡萝卜。"
+          "label": "繪製到胡蘿蔔的線",
+          "tooltip": "從角色位置繪製一條線到附近的胡蘿蔔。"
         },
         "show_hunt_button": {
-          "label": "显示寻宝按钮"
+          "label": "顯示尋寶按鈕"
         },
         "repeat_carrot_hunt": {
-          "label": "重复",
-          "tooltip": "在到达最后一个节点后重新开始搜索"
+          "label": "重複",
+          "tooltip": "在到達最後一個節點後重新開始搜尋"
         }
       }
     }

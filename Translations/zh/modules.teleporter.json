@@ -2,26 +2,26 @@
   "modules": {
     "teleporter": {
       "config": {
-        "title": "传送设置",
+        "title": "傳送設定",
         "should_mount": {
-          "label": "传送后上坐骑",
-          "tooltip": "传送后使用坐骑"
+          "label": "傳送後上坐騎",
+          "tooltip": "傳送後使用坐騎"
         },
         "path_to_destination": {
-          "label": "传送后自动前往事件地点",
-          "tooltip": "通过BOCCHI面板传送后，使用vnavmesh导航至下一个事件地点"
+          "label": "傳送後自動前往事件地點",
+          "tooltip": "透過BOCCHI面板傳送後，使用vnavmesh導航至下一個事件地點"
         },
         "return_after_fate": {
-          "label": "FATE结束后返回营地",
-          "tooltip": "完成FATE后使用亚返回返回营地"
+          "label": "FATE結束後返回營地",
+          "tooltip": "完成FATE後使用亞返回返回營地"
         },
         "return_after_critical_encounter": {
-          "label": "CE结束后返回营地",
-          "tooltip": "完成CE后使用亚返回返回营地"
+          "label": "CE結束後返回營地",
+          "tooltip": "完成CE後使用亞返回返回營地"
         },
         "approach_aetheryte": {
-          "label": "返回后接近以太水晶",
-          "tooltip": "返回后自动行走至以太之光位置\n* 仅在通过插件完成FATE或CE后返回时生效"
+          "label": "返回後接近以太水晶",
+          "tooltip": "返回後自動行走至以太之光位置\n* 僅在透過插件完成FATE或CE後返回時生效"
         }
       }
     }
