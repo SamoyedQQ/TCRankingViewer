@@ -115,9 +115,15 @@ public class KantaiProgressEntry
 public static class EncounterMeta
 {
     // Kantai encounter key → 過版本
+    // 判準：已被同類型的新版本副本接替（極被新極取代、幻檔期結束下架）。
+    // 零式維持不列入：上一期零式的成績仍是社群評估實力的共同基準，全部灰掉反而失去參考價值。
     private static readonly HashSet<string> ObsoleteKeys =
         new(StringComparer.OrdinalIgnoreCase)
-        { "extreme_valigarmanda", "extreme_zoraal_ja" };
+        {
+            "extreme_valigarmanda", "extreme_zoraal_ja",  // 7.0 極，7.1「極 永恆女王」接替
+            "extreme_queen_eternal",                      // 7.1 極，7.2「極 澤蓮尼亞」接替
+            "unreal_byakko",                              // 7.1 幻，7.2 換成「幻 朱雀」（幻為期間限定）
+        };
 
     // Kantai 副本名稱覆寫
     private static readonly Dictionary<string, string> KantaiNameOverrides = new()
@@ -133,12 +139,20 @@ public static class EncounterMeta
         ("巴哈姆特", "巴哈"),
         ("亞歷山大", "絕亞"),
         ("究極神兵", "神兵"),
+        ("M8S",      "M8S"),     // 7.2 次重量級（新一期零式，排在上一期輕量級之前）
+        ("M7S",      "M7S"),
+        ("M6S",      "M6S"),
+        ("M5S",      "M5S"),
         ("M4S",      "M4S"),
         ("M3S",      "M3S"),
         ("M2S",      "M2S"),
         ("M1S",      "M1S"),
         ("黑暗之雲", "滅暗雲"),   // 滅 Chaotic 24 人聯盟團（The Cloud of Darkness (Chaotic)）
+        // 澤蓮尼亞取兩字為 fragment：官方譯名為「澤蓮尼亞」，但上游資料站寫作「澤蓮妮亞」，
+        // 取共同前綴才能同時命中遊戲內副本名與資料站名稱
+        ("澤蓮",     "極澤蓮"),
         ("永恆女王", "極女王"),
+        ("朱雀",     "幻朱雀"),
         ("白虎",     "幻白虎"),
     ];
 
@@ -153,10 +167,17 @@ public static class EncounterMeta
         ["savage_m2s"]                 = "零式 M2S / 蜂蜂小甜心",
         ["savage_m3s"]                 = "零式 M3S / 野蠻炸彈",
         ["savage_m4s"]                 = "零式 M4S / 狡雷",
+        ["savage_m5s"]                 = "零式 M5S / 熱舞綠光",
+        ["savage_m6s"]                 = "零式 M6S / 狂熱糖潮",
+        ["savage_m7s"]                 = "零式 M7S / 野蠻恨心",
+        ["savage_m8s"]                 = "零式 M8S / 劍嚎",
         ["extreme_valigarmanda"]       = "極 豔翼蛇鳥",
         ["extreme_zoraal_ja"]          = "極 佐拉加",
         ["extreme_queen_eternal"]      = "極 永恆女王",
+        // 資料站寫作「澤蓮妮亞」，此處統一為遊戲內官方譯名「澤蓮尼亞」
+        ["extreme_zelenia"]            = "極 澤蓮尼亞",
         ["unreal_byakko"]              = "幻 白虎",
+        ["unreal_suzaku"]              = "幻 朱雀",
         ["chaotic_cloud_of_darkness"]  = "滅 黑暗之雲",
         ["ultimate_bahamut"]           = "絕 巴哈姆特",
         ["ultimate_ultima_weapon"]     = "絕 究極神兵",
@@ -178,7 +199,9 @@ public static class EncounterMeta
 
     // 練習進度階段對照（key = encounter key，內層 key = FFLogs lastPhaseAsAbsoluteIndex）。
     // ⚠️ 索引基準逐本不一（FFLogs 對不同本的起算與是否把中場算進 index 都不同），
-    // 以上游資料站校準後的對照表為準，不可套同一公式。零式視為單階段（無此 key）。
+    // 以上游資料站校準後的對照表為準，不可套同一公式。
+    // 零式無此 key：輕量級（M1S-M4S）本來就是單階段；次重量級（M6S-M8S）雖然會回報 phase_index，
+    // 但上游尚未實測校準對照，此處一併不猜，交由 ProgPhaseLabel 退回「第 N 階段」誠實顯示原始序號。
     private static readonly Dictionary<string, Dictionary<int, string>> ProgPhases = new()
     {
         ["ultimate_futures_rewritten"] = new() { [0] = "P1", [1] = "P2", [2] = "P3", [3] = "P4", [4] = "P5" },
@@ -217,6 +240,11 @@ public static class EncounterMeta
         if (dutyName.Contains("究極武器", StringComparison.OrdinalIgnoreCase) ||
             dutyName.Contains("Weapon's Refrain", StringComparison.OrdinalIgnoreCase))
             return "究極神兵";
+        // TC 零式：阿卡狄亞零式登天鬥技場 次重量級1-4 → M5S-M8S（7.2 新一期，官方譯名為「次重量級」）
+        if (dutyName.Contains("次重量級4")) return "M8S";
+        if (dutyName.Contains("次重量級3")) return "M7S";
+        if (dutyName.Contains("次重量級2")) return "M6S";
+        if (dutyName.Contains("次重量級1")) return "M5S";
         // TC 零式：阿卡狄亞零式登天門技場 輕量級1-4 → M1S-M4S
         if (dutyName.Contains("輕量級4")) return "M4S";
         if (dutyName.Contains("輕量級3")) return "M3S";
