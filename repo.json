@@ -27,7 +27,7 @@
     "Punchline": "隊伍變動與招募房間即時通知到 Discord,招募到期自動刷新,排到副本自動接受。",
     "Description": "當隊伍有任何變動(隊員加入、退出、滿員、隊伍訊息、團隊訊息、密語、副本排到)時,透過 Discord Webhook 發送通知並可 @ 提及;可依副本、職能、目的等條件自動搜尋招募佈告欄,找到符合的房間彙整成一則 Discord 訊息並隨房況更新;招募即將到期(60 分鐘)前自動重新發布;排到副本後可延遲自動按下出發;隊伍滿員還能發出桌面通知與音效提示(不需 Discord)。",
     "InternalName": "PartyBell",
-    "AssemblyVersion": "1.2.0.0",
+    "AssemblyVersion": "1.2.1.0",
     "RepoUrl": "https://github.com/SamoyedQQ/PartyBell",
     "ApplicableVersion": "any",
     "Tags": [
