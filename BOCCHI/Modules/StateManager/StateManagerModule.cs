@@ -87,6 +87,6 @@ public class StateManagerModule : Module
 
     public string GetStateText()
     {
-        return GetState().ToString();
+        return Localization.State(GetState());
     }
 }

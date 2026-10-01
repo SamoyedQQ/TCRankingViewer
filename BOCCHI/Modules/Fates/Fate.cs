@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Numerics;
 using BOCCHI.Data;
 using BOCCHI.Enums;
@@ -32,11 +32,11 @@ public class Fate(IFate fate)
         {
             try
             {
-                return fate.Name.ToString();
+                return Localization.GameName("Fate", fate.FateId, fate.Name.ToString());
             }
             catch (AccessViolationException)
             {
-                return "Unknown Fate";
+                return Ocelot.I18N.T("ui.unknown_fate");
             }
         }
     }

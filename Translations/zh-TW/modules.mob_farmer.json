@@ -1,0 +1,57 @@
+{
+  "modules": {
+    "mob_farmer": {
+      "config": {
+        "title": "打怪設定",
+        "mobs": {
+          "label": "目標怪物",
+          "tooltip": "需要擊殺的怪物清單"
+        },
+        "consider_special_mobs": {
+          "label": "包含特殊怪物",
+          "tooltip": "將特定時間/天氣出現的特殊怪物納入引怪目標和計數範圍"
+        },
+        "max_mob_level": {
+          "label": "怪物最大等級",
+          "tooltip": "引怪時的最高等級限制，用於處理特殊怪物或等級差"
+        },
+        "max_euclidean_distance": {
+          "label": "最大直線距離",
+          "tooltip": "引怪的最大直線距離，避免因特殊怪物導致角色移動至遠處"
+        },
+        "min_euclidean_distance_to_return_home": {
+          "label": "返回起始點的距離",
+          "tooltip": "戰鬥結束後，與起始點超過此距離時將自動返回"
+        },
+        "return_to_start_in_waiting_phase": {
+          "label": "戰鬥後返回起始點",
+          "tooltip": "起始點為按下「開始」按鈕時的位置"
+        },
+        "render_debug_lines": {
+          "label": "顯示偵錯線",
+          "tooltip": "非戰鬥怪物顯示紅線，戰鬥中怪物顯示綠線"
+        },
+        "render_debug_lines_while_not_running": {
+          "label": "未執行時顯示偵錯線",
+          "tooltip": "未執行時仍顯示偵錯線"
+        },
+        "apply_battle_bell": {
+          "label": "使用戰鬥之鈴",
+          "tooltip": "引怪前使用戰鬥之鈴。"
+        },
+        "maximum_battle_bell_wait_time": {
+          "label": "戰鬥之鈴最長等待時間",
+          "tooltip": "等待戰鬥之鈴冷卻完畢的最長時間。"
+        },
+        "minimum_mobs_to_start_loop": {
+          "label": "開始打怪所需的怪物數量",
+          "tooltip": "附近可攻擊的怪物達到此數量時，開始引怪。"
+        },
+        "minimum_mobs_to_start_fight": {
+          "label": "開始戰鬥所需怪物數",
+          "tooltip": "引到此數量的怪物後，停止移動並開始戰鬥。\n若附近已沒有其他未交戰的怪物，也會直接開始戰鬥。"
+        }
+      }
+    }
+  }
+}

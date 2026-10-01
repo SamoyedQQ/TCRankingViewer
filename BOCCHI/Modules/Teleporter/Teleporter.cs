@@ -58,7 +58,7 @@ public class Teleporter(TeleporterModule module)
 
         if (ImGui.IsItemHovered())
         {
-            ImGui.SetTooltip($"Pathfind to {name}");
+            ImGui.SetTooltip(string.Format(Ocelot.I18N.T("ui.pathfind_to_0"), name));
         }
 
         if (!module.TryGetIPCSubscriber<Lifestream>(out var lifestream) || lifestream == null || !lifestream.IsReady())
@@ -109,15 +109,15 @@ public class Teleporter(TeleporterModule module)
 
         if (!isNearShards)
         {
-            ImGui.SetTooltip($"You must be near an aetheryte to teleport");
+            ImGui.SetTooltip(Ocelot.I18N.T("ui.you_must_be_near_an_aetheryte_to_teleport"));
         }
         else if (isNearCurrentShard)
         {
-            ImGui.SetTooltip($"You're already at this aetheryte");
+            ImGui.SetTooltip(Ocelot.I18N.T("ui.you_re_already_at_this_aetheryte"));
         }
         else
         {
-            ImGui.SetTooltip($"Teleport to {aethernet.ToFriendlyString()}");
+            ImGui.SetTooltip(string.Format(Ocelot.I18N.T("ui.teleport_to_0"), aethernet.ToFriendlyString()));
         }
     }
 

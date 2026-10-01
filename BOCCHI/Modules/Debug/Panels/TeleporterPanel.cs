@@ -11,20 +11,20 @@ public class TeleporterPanel : Panel
 {
     public override string GetName()
     {
-        return "Teleporter";
+        return Ocelot.I18N.T("ui.teleporter");
     }
 
     public override void Render(DebugModule module)
     {
         if (module.TryGetModule<TeleporterModule>(out var teleporter) && teleporter!.IsReady())
         {
-            OcelotUi.Title("Teleporter:");
+            OcelotUi.Title(Ocelot.I18N.T("ui.teleporter_2"));
             OcelotUi.Indent(() =>
             {
                 var shards = ZoneData.GetNearbyAethernetShards();
                 if (shards.Count > 0)
                 {
-                    OcelotUi.Title("Nearby Aethernet Shards:");
+                    OcelotUi.Title(Ocelot.I18N.T("ui.nearby_aethernet_shards"));
                     OcelotUi.Indent(() =>
                     {
                         foreach (var shard in ZoneData.GetNearbyAethernetShards())
@@ -35,7 +35,7 @@ public class TeleporterPanel : Panel
                     });
                 }
 
-                if (ImGui.Button("Test Return"))
+                if (ImGui.Button(Ocelot.I18N.T("ui.test_return")))
                 {
                     teleporter.teleporter.Return();
                 }

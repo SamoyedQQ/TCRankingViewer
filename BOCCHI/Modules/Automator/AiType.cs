@@ -15,8 +15,8 @@ public static class AiProviderExtensions
     {
         return provider switch
         {
-            AiType.VBM => "Boss Mod by veyn, xan_0",
-            AiType.BMR => "BossMod Reborn by The Combat Reborn team",
+            AiType.VBM => Ocelot.I18N.T("ui.boss_mod_by_veyn_xan_0"),
+            AiType.BMR => Ocelot.I18N.T("ui.bossmod_reborn_by_the_combat_reborn_team"),
             _ => provider.ToString(),
         };
     }

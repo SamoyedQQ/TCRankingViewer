@@ -1,0 +1,174 @@
+{
+  "modules": {
+    "automator": {
+      "config": {
+        "title": "全自動模式",
+        "enabled": {
+          "tooltip": "全自動模式會自動操作角色，行為由此頁設定決定；其他頁面僅有標示相容的設定會生效。"
+        },
+        "ai_provider": {
+          "label": "AI 外掛",
+          "tooltip": "選擇用於處理戰鬥機制的 AI 外掛。"
+        },
+        "toggle_ai_provider": {
+          "label": "自動切換 AI 狀態",
+          "tooltip": "參加危命任務或緊急遭遇戰時啟用 AI，前往活動地點時停用 AI。"
+        },
+        "force_target": {
+          "label": "保持選取目標",
+          "tooltip": "在危命任務與緊急遭遇戰中，確保始終選取戰鬥目標。"
+        },
+        "force_target_central_enemy": {
+          "label": "優先選取中心敵人",
+          "tooltip": "優先選取怪物群中央的敵人。"
+        },
+        "engagement_range": {
+          "label": "接戰距離",
+          "tooltip": "接近危命任務怪物至此距離時，離開坐騎並交由技能循環或 AI 外掛接手。"
+        },
+        "do_critical_encounters": {
+          "label": "參加緊急遭遇戰",
+          "tooltip": "選擇下一項活動時，將緊急遭遇戰納入考慮。"
+        },
+        "delay_critical_encounters": {
+          "label": "延遲前往緊急遭遇戰",
+          "tooltip": "前往緊急遭遇戰前等待 10～15 秒。"
+        },
+        "do_scourge_of_the_mind": {
+          "label": "緊急遭遇戰：腦髓愛好者——奪心魔",
+          "tooltip": "選擇是否參加緊急遭遇戰「腦髓愛好者——奪心魔」。"
+        },
+        "do_the_black_regiment": {
+          "label": "緊急遭遇戰：黑色連隊",
+          "tooltip": "選擇是否參加緊急遭遇戰「黑色連隊」。"
+        },
+        "do_the_unbridled": {
+          "label": "緊急遭遇戰：憤怒的人造人——新月狂戰士",
+          "tooltip": "選擇是否參加緊急遭遇戰「憤怒的人造人——新月狂戰士」。"
+        },
+        "do_crawling_death": {
+          "label": "緊急遭遇戰：潛影撕裂者——死亡厲爪",
+          "tooltip": "選擇是否參加緊急遭遇戰「潛影撕裂者——死亡厲爪」。"
+        },
+        "do_calamity_bound": {
+          "label": "緊急遭遇戰：掙脫封印的大妖異——回廊惡魔",
+          "tooltip": "選擇是否參加緊急遭遇戰「掙脫封印的大妖異——回廊惡魔」。"
+        },
+        "do_trial_by_claw": {
+          "label": "緊急遭遇戰：擬造使魔——水晶龍",
+          "tooltip": "選擇是否參加緊急遭遇戰「擬造使魔——水晶龍」。"
+        },
+        "do_from_times_bygone": {
+          "label": "緊急遭遇戰：雙極的造物——神秘土偶",
+          "tooltip": "選擇是否參加緊急遭遇戰「雙極的造物——神秘土偶」。"
+        },
+        "do_company_of_stone": {
+          "label": "緊急遭遇戰：石製騎士團",
+          "tooltip": "選擇是否參加緊急遭遇戰「石製騎士團」。"
+        },
+        "do_shark_attack": {
+          "label": "緊急遭遇戰：傳說中的鯊魚——尼姆瓣齒鯊",
+          "tooltip": "選擇是否參加緊急遭遇戰「傳說中的鯊魚——尼姆瓣齒鯊」。"
+        },
+        "do_on_the_hunt": {
+          "label": "緊急遭遇戰：雙足獅人——躍立獅",
+          "tooltip": "選擇是否參加緊急遭遇戰「雙足獅人——躍立獅」。"
+        },
+        "do_with_extreme_prejudice": {
+          "label": "緊急遭遇戰：防衛指令",
+          "tooltip": "選擇是否參加緊急遭遇戰「防衛指令」。"
+        },
+        "do_noise_complaint": {
+          "label": "緊急遭遇戰：厭鳥巨獸——進化加魯拉",
+          "tooltip": "選擇是否參加緊急遭遇戰「厭鳥巨獸——進化加魯拉」。"
+        },
+        "do_cursed_concern": {
+          "label": "緊急遭遇戰：販賣詛咒的商販——金錢龜",
+          "tooltip": "選擇是否參加緊急遭遇戰「販賣詛咒的商販——金錢龜」。"
+        },
+        "do_eternal_watch": {
+          "label": "緊急遭遇戰：城塞守衛——復原獅像",
+          "tooltip": "選擇是否參加緊急遭遇戰「城塞守衛——復原獅像」。"
+        },
+        "do_flame_of_dusk": {
+          "label": "緊急遭遇戰：昏暗妖魂——鬼火苗",
+          "tooltip": "選擇是否參加緊急遭遇戰「昏暗妖魂——鬼火苗」。"
+        },
+        "do_fates": {
+          "label": "參加危命任務",
+          "tooltip": "選擇下一項活動時，將危命任務納入考慮。"
+        },
+        "do_rough_waters": {
+          "label": "危命任務：湧潮海魔——納木",
+          "tooltip": "選擇是否參加危命任務「湧潮海魔——納木」。"
+        },
+        "do_the_golden_guardian": {
+          "label": "危命任務：古代怪石——金色石面",
+          "tooltip": "選擇是否參加危命任務「古代怪石——金色石面」。"
+        },
+        "do_king_of_the_crescent": {
+          "label": "危命任務：悲鳴收集者——羅普羅斯",
+          "tooltip": "選擇是否參加危命任務「悲鳴收集者——羅普羅斯」。"
+        },
+        "do_the_winged_terror": {
+          "label": "危命任務：甲板清掃者——巨大鳥",
+          "tooltip": "選擇是否參加危命任務「甲板清掃者——巨大鳥」。"
+        },
+        "do_an_unending_duty": {
+          "label": "危命任務：神罰石獸——西西弗斯",
+          "tooltip": "選擇是否參加危命任務「神罰石獸——西西弗斯」。"
+        },
+        "do_brain_drain": {
+          "label": "危命任務：進化的毒鳥——高等魔鳥",
+          "tooltip": "選擇是否參加危命任務「進化的毒鳥——高等魔鳥」。"
+        },
+        "do_a_delicate_balance": {
+          "label": "危命任務：濕度獵手——除濕之火",
+          "tooltip": "選擇是否參加危命任務「濕度獵手——除濕之火」。"
+        },
+        "do_sworn_to_soil": {
+          "label": "危命任務：土壤守護者——癲泥怪",
+          "tooltip": "選擇是否參加危命任務「土壤守護者——癲泥怪」。"
+        },
+        "do_a_prying_eye": {
+          "label": "危命任務：監視之瞳——島嶼監視者",
+          "tooltip": "選擇是否參加危命任務「監視之瞳——島嶼監視者」。"
+        },
+        "do_fatal_allure": {
+          "label": "危命任務：美麗的咒殺者——執行者",
+          "tooltip": "選擇是否參加危命任務「美麗的咒殺者——執行者」。"
+        },
+        "do_serving_darkness": {
+          "label": "危命任務：凶惡使魔——生命收割者",
+          "tooltip": "選擇是否參加危命任務「凶惡使魔——生命收割者」。"
+        },
+        "do_persistent_pots": {
+          "label": "危命任務：幸福的魔法甕",
+          "tooltip": "選擇是否參加危命任務「幸福的魔法甕」。"
+        },
+        "do_pleading_pots": {
+          "label": "危命任務：瑟瑟發抖的魔法甕",
+          "tooltip": "選擇是否參加危命任務「瑟瑟發抖的魔法甕」。"
+        }
+      },
+      "panel": {
+        "title": "全自動模式",
+        "activity": {
+          "label": "目前活動",
+          "none": "無"
+        },
+        "activity_state": {
+          "label": "活動狀態",
+          "none": "等待活動"
+        },
+        "lens": {
+          "title": "BOCCHI 全自動模式檢視器"
+        }
+      },
+      "messages": {
+        "off": "[BOCCHI] 全自動模式關閉",
+        "on": "[BOCCHI] 全自動模式啟動"
+      }
+    }
+  }
+}

@@ -21,14 +21,7 @@ public class OCHIllegalCommand(Plugin plugin) : OcelotCommand
 
     protected override string Description
     {
-        get => @"
-Manage och automator/illegal mode.
- - /bocchiillegal (Toggles the automator lens window)
- - /bocchiillegal on (Enables illegal mode (Automation))
- - /bocchiillegal off (Disables illegal mode (Automation))
- - /bocchiillegal toggle (Toggles illegal mode (Automation))
---------------------------------
-".Trim();
+        get => Ocelot.I18N.T("ui.commands_automator_help");
     }
 
     protected override IReadOnlyList<string> Aliases

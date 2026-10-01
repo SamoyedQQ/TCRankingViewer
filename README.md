@@ -2,6 +2,8 @@
 
 # BOCCHI
 
+此 fork 提供預設的繁體中文（台灣）介面；語言設定、名詞來源與建置方式請見 [繁中說明](LOCALIZATION.zh-TW.md)。
+
 [Repository for all my plugins](https://raw.githubusercontent.com/OhKannaDuh/plugins/refs/heads/master/manifest.json)
 
 ## Features

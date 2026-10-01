@@ -1,0 +1,21 @@
+{
+  "modules": {
+    "event_drop": {
+      "config": {
+        "title": "事件掉落設定",
+        "show_demiatma_drops": {
+          "label": "顯示半魂晶掉落",
+          "tooltip": "在危命任務/緊急遭遇戰清單中顯示半魂晶掉落"
+        },
+        "show_note_drops": {
+          "label": "顯示筆記掉落",
+          "tooltip": "在危命任務/緊急遭遇戰清單中顯示調查記錄掉落"
+        },
+        "show_soul_shard_drops": {
+          "label": "顯示靈魂碎晶掉落",
+          "tooltip": "在緊急遭遇戰清單中顯示靈魂碎晶掉落"
+        }
+      }
+    }
+  }
+}

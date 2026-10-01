@@ -13,7 +13,7 @@ public class JobLevelPanel : Panel
 
     public override string GetName()
     {
-        return "Job Level";
+        return Ocelot.I18N.T("ui.job_level");
     }
 
     public override unsafe void Render(DebugModule module)
@@ -24,17 +24,17 @@ public class JobLevelPanel : Panel
         {
             foreach (var job in Svc.Data.GetExcelSheet<MKDSupportJob>())
             {
-                OcelotUi.Title(job.Unknown0.ToString());
+                OcelotUi.Title(Localization.GameName("MKDSupportJob", job.RowId, job.Unknown0.ToString()));
                 OcelotUi.Indent(() =>
                 {
                     var level = state->SupportJobLevels[(byte)job.RowId];
-                    OcelotUi.LabelledValue("Level", $"{level}/{job.Unknown10}");
+                    OcelotUi.LabelledValue(Ocelot.I18N.T("ui.level"), $"{level}/{job.Unknown10}");
                 });
 
                 OcelotUi.Indent(() =>
                 {
                     var exp = state->SupportJobExperience[(byte)job.RowId];
-                    OcelotUi.LabelledValue("Exp", exp);
+                    OcelotUi.LabelledValue(Ocelot.I18N.T("ui.exp"), exp);
                 });
             }
         });

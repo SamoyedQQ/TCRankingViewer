@@ -1,4 +1,4 @@
-﻿using BOCCHI.Data;
+using BOCCHI.Data;
 using Dalamud.Bindings.ImGui;
 using Ocelot;
 using Ocelot.Windows;
@@ -26,6 +26,6 @@ public class DebugWindow(Plugin priamryPlugin, Config config) : OcelotWindow(pri
 
     protected override string GetWindowName()
     {
-        return "OCH Debug";
+        return Ocelot.I18N.T("ui.och_debug");
     }
 }

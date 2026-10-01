@@ -66,12 +66,12 @@ public class FatesPanel : Panel
 
     public override string GetName()
     {
-        return "Fates";
+        return Ocelot.I18N.T("ui.fates");
     }
 
     public override void Render(DebugModule module)
     {
-        OcelotUi.Title("Fates:");
+        OcelotUi.Title(Ocelot.I18N.T("ui.fates_2"));
         OcelotUi.Indent(() =>
         {
             foreach (var data in EventData.Fates.Values)
@@ -82,7 +82,7 @@ public class FatesPanel : Panel
                 {
                     var start = FateLocations[data.Id];
 
-                    teleporter.teleporter.Button(data.Aethernet, start, data.InternalName, $"fate_{data.Id}", data);
+                    teleporter.teleporter.Button(data.Aethernet, start, Localization.GameName("Fate", data.Id, data.InternalName), $"fate_{data.Id}", data);
                 }
 
                 OcelotUi.Indent(() => EventIconRenderer.Drops(data, module.PluginConfig.EventDropConfig));

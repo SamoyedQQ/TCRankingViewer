@@ -1,7 +1,5 @@
-﻿using System;
 using BOCCHI.Chains;
 using BOCCHI.Data;
-using Dalamud.Game;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Plugin;
 using ECommons;
@@ -15,7 +13,7 @@ public sealed class Plugin : OcelotPlugin
 {
     public override string Name
     {
-        get => "Occult Crescent Helper";
+        get => "BOCCHI 新月島助手";
     }
 
     public Config Config { get; }
@@ -48,32 +46,14 @@ public sealed class Plugin : OcelotPlugin
         I18N.LoadAllFromDirectory("en", "Translations/en");
         I18N.LoadAllFromDirectory("jp", "Translations/jp");
         I18N.LoadAllFromDirectory("fr", "Translations/fr");
-#if DALAMUD_CN
-        I18N.LoadAllFromDirectory("zh", "Translations/zh");
-#endif
+        I18N.LoadAllFromDirectory("zh-TW", "Translations/zh-TW");
 
         // @todo: Breakup German and uwu translation
         I18N.LoadFromFile("de", "Translations/de.json");
         I18N.LoadFromFile("uwu", "Translations/uwu.json");
 
-        var lang = Svc.ClientState.ClientLanguage switch
-        {
-            ClientLanguage.French => "fr",
-            ClientLanguage.German => "de",
-            ClientLanguage.Japanese => "jp",
-#if DALAMUD_CN
-            ClientLanguage.ChineseSimplified => "zh",
-#endif
-            _ => "en",
-        };
-
-        I18N.SetLanguage(lang);
-
-        var today = DateTime.Today;
-        if (today is { Month: 4, Day: 1 } && Random.Shared.NextDouble() < 0.05)
-        {
-            I18N.SetLanguage("uwu");
-        }
+        Config.Language = Localization.Normalize(Config.Language) ?? "zh-TW";
+        Localization.SetLanguage(Config.Language);
     }
 
     protected override bool ShouldUpdate()

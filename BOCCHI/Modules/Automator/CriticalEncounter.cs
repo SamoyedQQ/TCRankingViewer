@@ -1,4 +1,4 @@
-﻿using BOCCHI.ActionHelpers;
+using BOCCHI.ActionHelpers;
 using BOCCHI.Data;
 using BOCCHI.Modules.CriticalEncounters;
 using BOCCHI.Modules.StateManager;
@@ -171,7 +171,7 @@ public class CriticalEncounter : Activity
 
     public override string GetName()
     {
-        return Encounter.Name.ToString();
+        return Localization.GameName("DynamicEvent", Encounter.DynamicEventId, Encounter.Name.ToString());
     }
 
     private bool IsCloseToZone(float radius = 50f)

@@ -14,7 +14,7 @@ public class BuffCommand(Plugin plugin) : OcelotCommand
 
     protected override string Description
     {
-        get => "";
+        get => Ocelot.I18N.T("ui.apply_configured_buffs");
     }
 
 

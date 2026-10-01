@@ -1,0 +1,12 @@
+{
+  "windows": {
+    "main": {
+      "title": "BOCCHI",
+      "buttons": {
+        "toggle_config": "設定視窗",
+        "emergency_stop": "緊急停止",
+        "toggle_illegal_mode": "切換全自動模式狀態"
+      }
+    }
+  }
+}

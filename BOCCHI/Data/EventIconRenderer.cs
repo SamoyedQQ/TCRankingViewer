@@ -62,14 +62,14 @@ public struct EventIconRenderer
         {
             ImGui.BeginTooltip();
 
-            var label = $"Needed ({needed})";
+            var label = string.Format(Ocelot.I18N.T("ui.needed_0"), needed);
             ;
             if (needed <= 0)
             {
-                label = $"Not Needed ({count})";
+                label = string.Format(Ocelot.I18N.T("ui.not_needed_0"), count);
             }
 
-            ImGui.TextUnformatted($"{itemData.Name}: {label}");
+            ImGui.TextUnformatted($"{Localization.GameName("Item", itemData.RowId, itemData.Name.ToString())}: {label}");
             ImGui.EndTooltip();
         }
     }
@@ -85,7 +85,7 @@ public struct EventIconRenderer
         if (ImGui.IsItemHovered())
         {
             ImGui.BeginTooltip();
-            ImGui.TextUnformatted(itemData.Name.ToString());
+            ImGui.TextUnformatted(Localization.GameName("Item", itemData.RowId, itemData.Name.ToString()));
             ImGui.EndTooltip();
         }
     }
@@ -101,7 +101,7 @@ public struct EventIconRenderer
         if (ImGui.IsItemHovered())
         {
             ImGui.BeginTooltip();
-            ImGui.TextUnformatted(itemData.Name.ToString());
+            ImGui.TextUnformatted(Localization.GameName("Item", itemData.RowId, itemData.Name.ToString()));
             ImGui.EndTooltip();
         }
     }

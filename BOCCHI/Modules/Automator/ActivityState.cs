@@ -15,12 +15,12 @@ public static class ActivityStateExtensions
     {
         return state switch
         {
-            ActivityState.Idle => "Idle",
-            ActivityState.Pathfinding => "Pathfinding",
-            ActivityState.WaitingToStartCriticalEncounter => "Waiting to Start (CE)",
-            ActivityState.Participating => "Participating",
-            ActivityState.Done => "Done",
-            _ => "Unknown",
+            ActivityState.Idle => Ocelot.I18N.T("ui.idle"),
+            ActivityState.Pathfinding => Ocelot.I18N.T("ui.pathfinding"),
+            ActivityState.WaitingToStartCriticalEncounter => Ocelot.I18N.T("ui.waiting_to_start_ce"),
+            ActivityState.Participating => Ocelot.I18N.T("ui.participating"),
+            ActivityState.Done => Ocelot.I18N.T("ui.done"),
+            _ => Ocelot.I18N.T("ui.unknown"),
         };
     }
 }

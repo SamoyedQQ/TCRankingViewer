@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Globalization;
 using ECommons.DalamudServices;
 using Lumina.Excel.Sheets;
@@ -29,16 +29,16 @@ public static class MobData
     {
         if (NameCache.TryGetValue(mob, out var name))
         {
-            return name;
+            return Localization.GameName("BNpcName", (uint)mob, name);
         }
 
         if (Svc.Data.GetExcelSheet<BNpcName>().TryGetRow((uint)mob, out var row))
         {
             var titleCase = CultureInfo.CurrentCulture.TextInfo.ToTitleCase(row.Singular.ToString().ToLower());
             NameCache[mob] = titleCase;
-            return titleCase;
+            return Localization.GameName("BNpcName", (uint)mob, titleCase);
         }
 
-        return mob.ToString();
+        return Localization.GameName("BNpcName", (uint)mob, mob.ToString());
     }
 }

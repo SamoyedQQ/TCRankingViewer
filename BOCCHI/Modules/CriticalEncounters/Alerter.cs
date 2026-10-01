@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using BOCCHI.Data;
 using BOCCHI.Enums;
@@ -47,7 +47,7 @@ public class Alerter : IDisposable
     {
         if (module.Config.LogSpawn)
         {
-            Svc.Chat.Print($"{ev.Name} has Spawned");
+            Svc.Chat.Print(string.Format(Ocelot.I18N.T("ui.0_has_spawned"), Localization.GameName("DynamicEvent", ev.DynamicEventId, ev.Name.ToString())));
         }
 
         if (!ShouldAlertForCriticalEncounter(ev))
@@ -62,7 +62,7 @@ public class Alerter : IDisposable
     {
         if (module.Config.LogSpawn)
         {
-            Svc.Chat.Print($"{ev.Name} has Despawned");
+            Svc.Chat.Print(string.Format(Ocelot.I18N.T("ui.0_has_despawned"), Localization.GameName("DynamicEvent", ev.DynamicEventId, ev.Name.ToString())));
         }
 
         if (!ShouldAlertForCriticalEncounter(ev))

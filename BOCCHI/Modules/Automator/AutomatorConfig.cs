@@ -10,7 +10,7 @@ public class AutomatorConfig : ModuleConfig
     [Illegal]
     [RequiredPlugin("Lifestream", "vnavmesh")]
     [Label("generic.label.enabled")]
-    [Tooltip("enabled")]
+    [Tooltip("modules.automator.config.enabled.tooltip")]
     public bool Enabled { get; set; } = false;
 
     [Enum(typeof(AiType), nameof(AiTypeProvider))]

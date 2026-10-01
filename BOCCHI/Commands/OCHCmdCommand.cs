@@ -20,14 +20,7 @@ public class OCHCmdCommand(Plugin plugin) : OcelotCommand
 
     protected override string Description
     {
-        get => @"
-Utility command.
- - Flag commands clear active flag before trying to place a new one
-   - /bocchicmd flag-active-ce (Place a flag marker on the current Critical Engagement)
-   - /bocchicmd flag-active-fate (Place a flag marker on a current Fate)
-   - /bocchicmd flag-active-non-pot-fate (Place a flag marker on a current fate that isn't a pot fate)
---------------------------------
-".Trim();
+        get => Ocelot.I18N.T("ui.commands_utility_help");
     }
 
     protected override IReadOnlyList<string> Aliases

@@ -81,19 +81,19 @@ public class TreasureHuntPanel : Panel
 
     public override string GetName()
     {
-        return "Treasure Hunt Helper";
+        return Ocelot.I18N.T("ui.treasure_hunt_helper");
     }
 
     public override void Render(DebugModule module)
     {
-        OcelotUi.LabelledValue("Bronze", Treasure.Count(t => t.type == 1596)); // 60
-        OcelotUi.LabelledValue("Silver", Treasure.Count(t => t.type == 1597)); // 8
+        OcelotUi.LabelledValue(Ocelot.I18N.T("ui.bronze"), Treasure.Count(t => t.type == 1596)); // 60
+        OcelotUi.LabelledValue(Ocelot.I18N.T("ui.silver"), Treasure.Count(t => t.type == 1597)); // 8
 
         OcelotUi.Indent(() =>
         {
             if (!HasRun)
             {
-                if (ImGui.Button("Run"))
+                if (ImGui.Button(Ocelot.I18N.T("ui.run")))
                 {
                     ShouldRun = true;
                 }
@@ -103,9 +103,9 @@ public class TreasureHuntPanel : Panel
 
             var Completion = (float)Progress / (float)MaxProgress * 100;
 
-            OcelotUi.LabelledValue("Progress: ", $"{Completion:f2}%");
-            OcelotUi.Indent(() => OcelotUi.LabelledValue("Calculations: ", $"{Progress}/{MaxProgress}"));
-            OcelotUi.LabelledValue("Elapsed: ", stopwatch.Elapsed.ToString("mm\\:ss"));
+            OcelotUi.LabelledValue(Ocelot.I18N.T("ui.progress"), $"{Completion:f2}%");
+            OcelotUi.Indent(() => OcelotUi.LabelledValue(Ocelot.I18N.T("ui.calculations"), $"{Progress}/{MaxProgress}"));
+            OcelotUi.LabelledValue(Ocelot.I18N.T("ui.elapsed"), stopwatch.Elapsed.ToString("mm\\:ss"));
         });
     }
 

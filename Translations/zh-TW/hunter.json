@@ -1,0 +1,11 @@
+{
+  "hunter": {
+    "progress": "進度",
+    "distance_shard": "距離以太之光",
+    "elapsed": "經過時間",
+    "export": {
+      "label": "將路徑匯出為 JSON",
+      "tooltip": "將目前或上次的路徑以 JSON 格式複製到剪貼簿。"
+    }
+  }
+}

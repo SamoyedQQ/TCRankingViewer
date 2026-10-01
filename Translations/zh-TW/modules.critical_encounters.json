@@ -1,0 +1,64 @@
+{
+  "modules": {
+    "critical_encounters": {
+      "config": {
+        "title": "緊急遭遇戰設定",
+        "track_forked_tower": {
+          "label": "追蹤兩歧塔",
+          "tooltip": "記錄兩歧塔最後結束的時間"
+        },
+        "log_spawn": {
+          "label": "緊急遭遇戰出現/消失時輸出聊天資訊",
+          "tooltip": "當緊急遭遇戰出現或消失時，在聊天視窗輸出一條訊息"
+        },
+        "alert_all": {
+          "label": "緊急遭遇戰出現時通知",
+          "tooltip": "當任何緊急遭遇戰出現時播放提示音"
+        },
+        "alert_azurite": {
+          "label": "通知青色半魂晶的緊急遭遇戰",
+          "tooltip": "當掉落青色半魂晶的緊急遭遇戰出現時播放提示音"
+        },
+        "alert_verdigris": {
+          "label": "通知碧色半魂晶的緊急遭遇戰",
+          "tooltip": "當掉落碧色半魂晶的緊急遭遇戰出現時播放提示音"
+        },
+        "alert_malachite": {
+          "label": "通知綠色半魂晶的緊急遭遇戰",
+          "tooltip": "當掉落綠色半魂晶的緊急遭遇戰出現時播放提示音"
+        },
+        "alert_realgar": {
+          "label": "通知橙色半魂晶的緊急遭遇戰",
+          "tooltip": "當掉落橙色半魂晶的緊急遭遇戰出現時播放提示音"
+        },
+        "alert_caput_mortuum": {
+          "label": "通知紫色半魂晶的緊急遭遇戰",
+          "tooltip": "當掉落紫色半魂晶的緊急遭遇戰出現時播放提示音"
+        },
+        "alert_orpiment": {
+          "label": "通知黃色半魂晶的緊急遭遇戰",
+          "tooltip": "當掉落黃色半魂晶的緊急遭遇戰出現時播放提示音"
+        },
+        "alert_oracle": {
+          "label": "通知掉落靈魂碎晶：預言士的緊急遭遇戰",
+          "tooltip": "當掉落靈魂碎晶：預言士的緊急遭遇戰出現時播放提示音"
+        },
+        "alert_berserker": {
+          "label": "通知掉落靈魂碎晶：狂戰士的緊急遭遇戰",
+          "tooltip": "當掉落靈魂碎晶：狂戰士的緊急遭遇戰出現時播放提示音"
+        },
+        "alert_ranger": {
+          "label": "通知掉落靈魂碎晶：獵人的緊急遭遇戰",
+          "tooltip": "當掉落靈魂碎晶：獵人的緊急遭遇戰出現時播放提示音"
+        }
+      },
+      "panel": {
+        "title": "緊急遭遇戰",
+        "none": "目前沒有進行中的緊急遭遇戰。",
+        "register": "報名中",
+        "warmup": "開戰準備中",
+        "estimated": "預計"
+      }
+    }
+  }
+}

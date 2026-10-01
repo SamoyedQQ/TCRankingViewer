@@ -1,0 +1,17 @@
+{
+  "states": {
+    "State": {
+      "Idle": "Idle",
+      "InCombat": "In combat",
+      "InFate": "In FATE",
+      "InCriticalEncounter": "In critical encounter"
+    },
+    "FarmerPhase": {
+      "Waiting": "Waiting",
+      "Buffing": "Applying buffs",
+      "Gathering": "Pulling enemies",
+      "Stacking": "Grouping enemies",
+      "Fighting": "Fighting"
+    }
+  }
+}

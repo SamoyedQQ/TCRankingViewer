@@ -1,0 +1,42 @@
+{
+  "modules": {
+    "treasure": {
+      "config": {
+        "title": "寶箱設定",
+        "draw_line_to_bronze_chests": {
+          "label": "繪製青銅財寶箱指引線",
+          "tooltip": "非戰鬥狀態下，從角色位置向附近的青銅財寶箱繪製指引線"
+        },
+        "draw_line_to_silver_chests": {
+          "label": "繪製白銀財寶箱指引線",
+          "tooltip": "非戰鬥狀態下，從角色位置向附近的白銀財寶箱繪製指引線"
+        },
+        "show_hunt_button": {
+          "label": "顯示寶藏搜尋按鈕"
+        },
+        "cast_treasure_sight_upon_return": {
+          "label": "返回營地後施放魔尋寶",
+          "tooltip": "危命任務或緊急遭遇戰結束並返回營地後，施放魔尋寶以更新現存寶箱數量。"
+        },
+        "show_percentage_active_treasure_count": {
+          "label": "以百分比顯示寶箱",
+          "tooltip": "在總數量旁顯示目前寶箱的百分比"
+        }
+      },
+      "panel": {
+        "title": "寶箱",
+        "none": "附近沒有寶箱。",
+        "hunt": {
+          "title": "自動尋寶",
+          "distance_node": "距下一個寶箱的距離"
+        },
+        "active_bronze": {
+          "label": "青銅財寶箱"
+        },
+        "active_silver": {
+          "label": "白銀財寶箱"
+        }
+      }
+    }
+  }
+}

@@ -72,7 +72,7 @@ public static class AethernetExtensions
 {
     public static string ToFriendlyString(this Aethernet aethernet)
     {
-        return Svc.Data.GetExcelSheet<PlaceName>().FirstOrDefault(p => p.RowId == (uint)aethernet).Name.ToString();
+        return Localization.GameName("PlaceName", (uint)aethernet, Svc.Data.GetExcelSheet<PlaceName>().FirstOrDefault(p => p.RowId == (uint)aethernet).Name.ToString());
     }
 
     public static AethernetData GetData(this Aethernet aethernet)

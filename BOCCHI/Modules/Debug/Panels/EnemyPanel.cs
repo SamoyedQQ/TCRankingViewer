@@ -16,7 +16,7 @@ public class EnemyPanel : Panel
 {
     public override string GetName()
     {
-        return "Nearby Enemies";
+        return Ocelot.I18N.T("ui.nearby_enemies");
     }
 
     private List<IGameObject> enemies = [];
@@ -31,46 +31,46 @@ public class EnemyPanel : Panel
                 {
                     OcelotUi.Indent(() =>
                     {
-                        ImGui.Text($"Name: {enemy.Name.TextValue}");
-                        ImGui.Text($"GameObjectId: {enemy.GameObjectId:X}");
-                        ImGui.Text($"EntityId: {enemy.EntityId:X}");
-                        ImGui.Text($"DataId: {enemy.DataId}");
-                        ImGui.Text($"OwnerId: {enemy.OwnerId}");
-                        ImGui.Text($"ObjectIndex: {enemy.ObjectIndex}");
-                        ImGui.Text($"ObjectKind: {enemy.ObjectKind}");
-                        ImGui.Text($"SubKind: {enemy.SubKind}");
-                        ImGui.Text($"Position: {enemy.Position}");
-                        ImGui.Text($"Rotation: {enemy.Rotation}");
-                        ImGui.Text($"HitboxRadius: {enemy.HitboxRadius}");
-                        ImGui.Text($"YalmDistanceX: {enemy.YalmDistanceX}");
-                        ImGui.Text($"YalmDistanceZ: {enemy.YalmDistanceZ}");
-                        ImGui.Text($"IsDead: {enemy.IsDead}");
-                        ImGui.Text($"IsTargetable: {enemy.IsTargetable}");
-                        ImGui.Text($"TargetObjectId: {enemy.TargetObjectId:X}");
+                        ImGui.Text(Ocelot.I18N.T("ui.enemy_name") + $": {enemy.Name.TextValue}");
+                        ImGui.Text(Ocelot.I18N.T("ui.enemy_gameobjectid") + $": {enemy.GameObjectId:X}");
+                        ImGui.Text(Ocelot.I18N.T("ui.enemy_entityid") + $": {enemy.EntityId:X}");
+                        ImGui.Text(Ocelot.I18N.T("ui.enemy_dataid") + $": {enemy.DataId}");
+                        ImGui.Text(Ocelot.I18N.T("ui.enemy_ownerid") + $": {enemy.OwnerId}");
+                        ImGui.Text(Ocelot.I18N.T("ui.enemy_objectindex") + $": {enemy.ObjectIndex}");
+                        ImGui.Text(Ocelot.I18N.T("ui.enemy_objectkind") + $": {enemy.ObjectKind}");
+                        ImGui.Text(Ocelot.I18N.T("ui.enemy_subkind") + $": {enemy.SubKind}");
+                        ImGui.Text(Ocelot.I18N.T("ui.enemy_position") + $": {enemy.Position}");
+                        ImGui.Text(Ocelot.I18N.T("ui.enemy_rotation") + $": {enemy.Rotation}");
+                        ImGui.Text(Ocelot.I18N.T("ui.enemy_hitboxradius") + $": {enemy.HitboxRadius}");
+                        ImGui.Text(Ocelot.I18N.T("ui.enemy_yalmdistancex") + $": {enemy.YalmDistanceX}");
+                        ImGui.Text(Ocelot.I18N.T("ui.enemy_yalmdistancez") + $": {enemy.YalmDistanceZ}");
+                        ImGui.Text(Ocelot.I18N.T("ui.enemy_isdead") + $": {(enemy.IsDead ? Ocelot.I18N.T("ui.yes") : Ocelot.I18N.T("ui.no"))}");
+                        ImGui.Text(Ocelot.I18N.T("ui.enemy_istargetable") + $": {(enemy.IsTargetable ? Ocelot.I18N.T("ui.yes") : Ocelot.I18N.T("ui.no"))}");
+                        ImGui.Text(Ocelot.I18N.T("ui.enemy_targetobjectid") + $": {enemy.TargetObjectId:X}");
 
                         if (enemy.TargetObject is { } target)
                         {
-                            ImGui.Text($"TargetObject: {target.Name.TextValue} ({target.GameObjectId:X})");
+                            ImGui.Text(Ocelot.I18N.T("ui.enemy_targetobject") + $": {target.Name.TextValue} ({target.GameObjectId:X})");
                         }
                         else
                         {
-                            ImGui.Text($"TargetObject: None");
+                            ImGui.Text(Ocelot.I18N.T("ui.enemy_targetobject") + ": " + Ocelot.I18N.T("ui.none"));
                         }
 
-                        ImGui.Text($"IsValid(): {enemy.IsValid()}");
-                        ImGui.Text($"Address: 0x{enemy.Address.ToInt64():X}");
+                        ImGui.Text(Ocelot.I18N.T("ui.enemy_isvalid") + $": {(enemy.IsValid() ? Ocelot.I18N.T("ui.yes") : Ocelot.I18N.T("ui.no"))}");
+                        ImGui.Text(Ocelot.I18N.T("ui.enemy_address") + $": 0x{enemy.Address.ToInt64():X}");
 
 
                         var battleChara = (BattleChara*)enemy.Address;
 
 
-                        ImGui.Text($"LayoutId: {battleChara->LayoutId}");
-                        ImGui.Text($"Level: {battleChara->ForayInfo.Level}");
+                        ImGui.Text(Ocelot.I18N.T("ui.enemy_layoutid") + $": {battleChara->LayoutId}");
+                        ImGui.Text(Ocelot.I18N.T("ui.enemy_level") + $": {battleChara->ForayInfo.Level}");
 
                         var distance = Player.DistanceTo(enemy.Position);
                         if (distance <= 30f)
                         {
-                            if (ImGui.Button("Target"))
+                            if (ImGui.Button(Ocelot.I18N.T("ui.target")))
                             {
                                 Svc.Targets.Target = enemy;
                             }

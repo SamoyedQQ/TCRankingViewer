@@ -1,0 +1,46 @@
+{
+  "modules": {
+    "fates": {
+      "config": {
+        "title": "危命任務設定",
+        "log_spawn": {
+          "label": "出現/消失時輸出聊天資訊",
+          "tooltip": "當危命任務出現或消失時傳送提示訊息"
+        },
+        "alert_all": {
+          "label": "所有危命任務出現時通知",
+          "tooltip": "當任何危命任務出現時播放提示音"
+        },
+        "alert_azurite": {
+          "label": "通知青色半魂晶的危命任務",
+          "tooltip": "當掉落青色半魂晶的危命任務出現時播放提示音"
+        },
+        "alert_verdigris": {
+          "label": "通知碧色半魂晶的危命任務",
+          "tooltip": "當掉落碧色半魂晶的危命任務出現時播放提示音"
+        },
+        "alert_malachite": {
+          "label": "通知綠色半魂晶的危命任務",
+          "tooltip": "當掉落綠色半魂晶的危命任務出現時播放提示音"
+        },
+        "alert_realgar": {
+          "label": "通知橙色半魂晶的危命任務",
+          "tooltip": "當掉落橙色半魂晶的危命任務出現時播放提示音"
+        },
+        "alert_caput_mortuum": {
+          "label": "通知紫色半魂晶的危命任務",
+          "tooltip": "當掉落紫色半魂晶的危命任務出現時播放提示音"
+        },
+        "alert_orpiment": {
+          "label": "通知黃色半魂晶的危命任務",
+          "tooltip": "當掉落黃色半魂晶的危命任務出現時播放提示音"
+        }
+      },
+      "panel": {
+        "title": "危命任務",
+        "none": "目前沒有進行中的危命任務。",
+        "estimated": "預計"
+      }
+    }
+  }
+}

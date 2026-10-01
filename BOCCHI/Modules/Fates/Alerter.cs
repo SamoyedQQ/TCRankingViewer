@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using BOCCHI.Enums;
 using ECommons.DalamudServices;
@@ -35,7 +35,7 @@ public class Alerter : IDisposable
     {
         if (module.Config.LogSpawn)
         {
-            Svc.Chat.Print($"{fate.Name} has Spawned");
+            Svc.Chat.Print(string.Format(Ocelot.I18N.T("ui.0_has_spawned"), fate.Name));
         }
 
         if (!ShouldAlertForFate(fate))
@@ -50,7 +50,7 @@ public class Alerter : IDisposable
     {
         if (module.Config.LogSpawn)
         {
-            Svc.Chat.Print($"{fate.Name} has Despawned");
+            Svc.Chat.Print(string.Format(Ocelot.I18N.T("ui.0_has_despawned"), fate.Name));
         }
 
         if (!ShouldAlertForFate(fate))

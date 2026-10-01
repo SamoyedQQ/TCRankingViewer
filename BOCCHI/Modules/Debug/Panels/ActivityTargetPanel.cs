@@ -21,7 +21,7 @@ public class ActivityTargetPanel : Panel
 
     public override string GetName()
     {
-        return "Activity Targets";
+        return Ocelot.I18N.T("ui.activity_targets");
     }
 
     public override unsafe void Render(DebugModule module)
@@ -38,10 +38,10 @@ public class ActivityTargetPanel : Panel
                 ImGui.TextUnformatted(enemy.Name.ToString());
                 OcelotUi.Indent(() =>
                 {
-                    OcelotUi.LabelledValue("Object Kind", enemy.ObjectKind);
-                    OcelotUi.LabelledValue("Targetable", enemy.IsTargetable ? "Yes" : "No");
-                    OcelotUi.LabelledValue("Is Alive", enemy.IsDead ? "No" : "Yes");
-                    OcelotUi.LabelledValue("Is Activity Target", IsActivityTarget(enemy, module) ? "Yes" : "No");
+                    OcelotUi.LabelledValue(Ocelot.I18N.T("ui.object_kind"), enemy.ObjectKind);
+                    OcelotUi.LabelledValue(Ocelot.I18N.T("ui.targetable"), enemy.IsTargetable ? Ocelot.I18N.T("ui.yes") : Ocelot.I18N.T("ui.no"));
+                    OcelotUi.LabelledValue(Ocelot.I18N.T("ui.is_alive"), enemy.IsDead ? Ocelot.I18N.T("ui.no") : Ocelot.I18N.T("ui.yes"));
+                    OcelotUi.LabelledValue(Ocelot.I18N.T("ui.is_activity_target"), IsActivityTarget(enemy, module) ? Ocelot.I18N.T("ui.yes") : Ocelot.I18N.T("ui.no"));
                 });
             }
         });

@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using BOCCHI.Modules.Debug;
 using ECommons;
 using ECommons.DalamudServices;
@@ -19,24 +18,13 @@ public class MainCommand(Plugin plugin) : OcelotCommand
 
     protected override string Description
     {
-        get => @"
-Opens Occult Crescent Helper main ui
- - /bocchi : Opens the main ui
- - /bocchi config : opens the config ui
- - /bocchi cfg : opens the config ui
---------------------------------
-".Trim();
+        get => Ocelot.I18N.T("ui.commands_main_help");
     }
 
     protected override IReadOnlyList<string> Aliases
     {
         get => ["/och", "/occultcrescenthelper"];
     }
-
-    private readonly IReadOnlyList<string> languageCodes =
-    [
-        "en", "de", "fr", "jp", "uwu",
-    ];
 
     public override void Execute(string command, string arguments)
     {
@@ -71,19 +59,21 @@ Opens Occult Crescent Helper main ui
             var parts = arguments.Split(' ', 2);
             if (parts.Length == 2)
             {
-                var code = parts[1].Trim().ToLowerInvariant();
-                if (languageCodes.Contains(code))
+                var code = Localization.Normalize(parts[1].Trim());
+                if (code != null)
                 {
-                    I18N.SetLanguage(code);
-                    Svc.Chat.Print($"Language set to: {code}");
+                    plugin.Config.Language = code;
+                    Localization.SetLanguage(code);
+                    plugin.Config.Save();
+                    Svc.Chat.Print(string.Format(Ocelot.I18N.T("ui.language_set_to_0"), code));
                     return;
                 }
 
-                Svc.Log.Error($"Unknown language code: {code}");
+                Svc.Chat.Print(string.Format(Ocelot.I18N.T("ui.unknown_language_code_0"), parts[1].Trim()));
                 return;
             }
 
-            Svc.Chat.Print("Usage: /bocchi language <code>");
+            Svc.Chat.Print(Ocelot.I18N.T("ui.usage_bocchi_language_code"));
             return;
         }
 

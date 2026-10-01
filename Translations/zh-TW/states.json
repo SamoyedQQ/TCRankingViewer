@@ -1,0 +1,17 @@
+{
+  "states": {
+    "State": {
+      "Idle": "待命中",
+      "InCombat": "戰鬥中",
+      "InFate": "參加危命任務中",
+      "InCriticalEncounter": "參加緊急遭遇戰中"
+    },
+    "FarmerPhase": {
+      "Waiting": "等待中",
+      "Buffing": "施放增益效果中",
+      "Gathering": "引怪中",
+      "Stacking": "集中怪物中",
+      "Fighting": "戰鬥中"
+    }
+  }
+}

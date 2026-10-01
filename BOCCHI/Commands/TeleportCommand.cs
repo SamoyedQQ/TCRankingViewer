@@ -21,7 +21,7 @@ public class TeleportCommand(Plugin plugin) : OcelotCommand
 
     protected override string Description
     {
-        get => "";
+        get => Ocelot.I18N.T("ui.teleport_to_an_activity_bocchitp_fate_ce_pot");
     }
 
 
@@ -29,14 +29,14 @@ public class TeleportCommand(Plugin plugin) : OcelotCommand
     {
         if (ZoneData.GetNearbyAethernetShards().Count <= 0)
         {
-            Svc.Chat.Print("You are not near a aethernet shards.");
+            Svc.Chat.Print(Ocelot.I18N.T("ui.you_are_not_near_a_aethernet_shards"));
             return;
         }
 
         var lifestream = plugin.IPC.GetSubscriber<Lifestream>();
         if (!lifestream.IsReady() || lifestream.IsBusy())
         {
-            Svc.Chat.Print("Lifestream is busy");
+            Svc.Chat.Print(Ocelot.I18N.T("ui.lifestream_is_busy"));
             return;
         }
 
@@ -65,13 +65,13 @@ public class TeleportCommand(Plugin plugin) : OcelotCommand
 
         if (shard == null)
         {
-            Svc.Chat.Print("No aethernet shard found");
+            Svc.Chat.Print(Ocelot.I18N.T("ui.no_aethernet_shard_found"));
             return;
         }
 
         if (ZoneData.IsNearAethernetShard((Aethernet)shard))
         {
-            Svc.Chat.Print("You are already at the closest shard");
+            Svc.Chat.Print(Ocelot.I18N.T("ui.you_are_already_at_the_closest_shard"));
             return;
         }
 

@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using System.Numerics;
 using BOCCHI.Modules;
 using Dalamud.Interface.Utility.Raii;
@@ -17,17 +17,26 @@ public class ConfigWindow(Plugin primaryPlugin, Config config) : OcelotConfigWin
     {
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(400, 0),
+            MinimumSize = new Vector2(760, 300),
             MaximumSize = new Vector2(float.MaxValue, float.MaxValue),
         };
     }
 
     protected override void Render(RenderContext context)
     {
+        var language = System.Array.IndexOf(Localization.Codes, primaryPlugin.Config.Language);
+        if (ImGui.Combo(Ocelot.I18N.T("ui.language"), ref language, Localization.Names, Localization.Names.Length))
+        {
+            primaryPlugin.Config.Language = Localization.Codes[language];
+            Localization.SetLanguage(primaryPlugin.Config.Language);
+            primaryPlugin.Config.Save();
+        }
+        ImGui.Separator();
+
         var modules = Plugin.Modules.GetModulesByConfigOrder().ToList();
         selectedConfigModule ??= modules.FirstOrDefault();
 
-        using (ImRaii.Child("##LeftPanel", new Vector2(300, 0), true))
+        using (ImRaii.Child("##LeftPanel", new Vector2(220 * Dalamud.Interface.Utility.ImGuiHelpers.GlobalScale, 0), true))
         {
             foreach (var module in modules)
             {
@@ -57,7 +66,7 @@ public class ConfigWindow(Plugin primaryPlugin, Config config) : OcelotConfigWin
 
         using (ImRaii.Child("##RightPanel", new Vector2(0, 0), true))
         {
-            selectedConfigModule!.RenderConfigUi(context);
+            selectedConfigModule?.RenderConfigUi(context);
         }
     }
 }

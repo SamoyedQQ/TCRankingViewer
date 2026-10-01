@@ -10,7 +10,7 @@ public class StatusPanel : Panel
 {
     public override string GetName()
     {
-        return "Statuses";
+        return Ocelot.I18N.T("ui.statuses");
     }
 
     public override void Render(DebugModule module)
@@ -18,7 +18,7 @@ public class StatusPanel : Panel
         var data = Svc.Data.GetExcelSheet<Status>();
 
 
-        OcelotUi.Title("Statuses:");
+        OcelotUi.Title(Ocelot.I18N.T("ui.statuses_2"));
         OcelotUi.Indent(() =>
         {
             foreach (var s in Svc.ClientState.LocalPlayer!.StatusList)

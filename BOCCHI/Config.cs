@@ -26,6 +26,8 @@ public class Config : IOcelotConfig
 {
     public int Version { get; set; } = 1;
 
+    public string Language { get; set; } = "zh-TW";
+
     // Core
     public MountConfig MountConfig { get; set; } = new();
 

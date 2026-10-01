@@ -1,0 +1,29 @@
+{
+  "modules": {
+    "teleporter": {
+      "config": {
+        "title": "傳送設定",
+        "should_mount": {
+          "label": "傳送後上坐騎",
+          "tooltip": "傳送後使用坐騎"
+        },
+        "path_to_destination": {
+          "label": "傳送後自動前往事件地點",
+          "tooltip": "透過 BOCCHI 傳送後，使用 vnavmesh 自動前往活動地點。"
+        },
+        "return_after_fate": {
+          "label": "危命任務結束後返回營地",
+          "tooltip": "危命任務結束後，施放亞返回以回到調查隊營地。"
+        },
+        "return_after_critical_encounter": {
+          "label": "緊急遭遇戰結束後返回營地",
+          "tooltip": "緊急遭遇戰結束後，施放亞返回以回到調查隊營地。"
+        },
+        "approach_aetheryte": {
+          "label": "返回後靠近以太之光",
+          "tooltip": "返回後自動行走至以太之光位置\n* 僅在透過外掛完成危命任務或緊急遭遇戰後返回時生效"
+        }
+      }
+    }
+  }
+}

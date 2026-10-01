@@ -1,0 +1,121 @@
+diff --git a/Ocelot/Commands/OcelotCommand.cs b/Ocelot/Commands/OcelotCommand.cs
+index 0d4900b..ad36926 100644
+--- a/Ocelot/Commands/OcelotCommand.cs
++++ b/Ocelot/Commands/OcelotCommand.cs
+@@ -20,7 +20,7 @@ public abstract class OcelotCommand
+         EzCmd.Add(Command, Handle, Description);
+         foreach (var alias in Aliases)
+         {
+-            EzCmd.Add(alias, Handle, $"Alias: {Command}", int.MaxValue);
++            EzCmd.Add(alias, Handle, string.Format(I18N.T("ui.command_alias"), Command), int.MaxValue);
+         }
+     }
+ 
+diff --git a/Ocelot/Config/Handlers/MultiSelectHandler.cs b/Ocelot/Config/Handlers/MultiSelectHandler.cs
+index bd0e61c..1ddf702 100644
+--- a/Ocelot/Config/Handlers/MultiSelectHandler.cs
++++ b/Ocelot/Config/Handlers/MultiSelectHandler.cs
+@@ -1,4 +1,4 @@
+-﻿using System;
++using System;
+ using System.Collections.Generic;
+ using System.Linq;
+ using System.Numerics;
+@@ -28,7 +28,7 @@ public abstract class MultiSelectHandler<T>(ModuleConfig self, ConfigAttribute a
+ 
+         var dirty = false;
+ 
+-        var previewLabel = currentSelectedValues.Any() ? string.Join(", ", currentSelectedValues.Select(GetLabel)) : "None selected";
++        var previewLabel = currentSelectedValues.Any() ? string.Join(", ", currentSelectedValues.Select(GetLabel)) : Ocelot.I18N.T("ui.none_selected");
+ 
+         if (ImGui.BeginCombo(context.GetLabelWithId(), previewLabel, ImGuiComboFlags.HeightLarge))
+         {
+diff --git a/Ocelot/Config/Handlers/RenderContext.cs b/Ocelot/Config/Handlers/RenderContext.cs
+index adef1c6..5a280ca 100644
+--- a/Ocelot/Config/Handlers/RenderContext.cs
++++ b/Ocelot/Config/Handlers/RenderContext.cs
+@@ -153,7 +153,7 @@ public class RenderContext
+ 
+         if (ImGui.IsItemHovered())
+         {
+-            ImGui.SetTooltip("Experimental");
++            ImGui.SetTooltip(Ocelot.I18N.T("ui.experimental"));
+         }
+ 
+         ImGui.SameLine();
+@@ -174,7 +174,7 @@ public class RenderContext
+ 
+         if (ImGui.IsItemHovered())
+         {
+-            ImGui.SetTooltip("May lead to a ban. Use at your own risk.");
++            ImGui.SetTooltip(Ocelot.I18N.T("ui.may_lead_to_a_ban_use_at_your_own_risk"));
+         }
+ 
+         ImGui.SameLine();
+@@ -196,7 +196,7 @@ public class RenderContext
+                 return;
+             }
+ 
+-            if (translation_key != null && !hasLabel)
++            if (translation_key != null)
+             {
+                 ImGui.SetTooltip(I18N.T(translation_key));
+             }
+@@ -215,7 +215,7 @@ public class RenderContext
+ 
+         if (self.Owner == null)
+         {
+-            return "Unknown label";
++            return Ocelot.I18N.T("ui.unknown_label");
+         }
+ 
+         return self.Owner.T($"config.{ToSnakeCase(prop.Name)}.label");
+diff --git a/Ocelot/Modules/ModuleConfig.cs b/Ocelot/Modules/ModuleConfig.cs
+index 4e3de6b..7abf908 100644
+--- a/Ocelot/Modules/ModuleConfig.cs
++++ b/Ocelot/Modules/ModuleConfig.cs
+@@ -94,7 +94,7 @@ public abstract class ModuleConfig
+ 
+             foreach (var text in GetText())
+             {
+-                ImGui.TextUnformatted(text);
++                ImGui.TextWrapped(text);
+             }
+ 
+             var error = false;
+@@ -115,7 +115,7 @@ public abstract class ModuleConfig
+                     error = true;
+                     OcelotUi.Indent(() =>
+                     {
+-                        OcelotUi.Error("The following plugins are required for this module:");
++                        OcelotUi.Error(Ocelot.I18N.T("ui.the_following_plugins_are_required_for_this_module"));
+                         ImGui.SameLine();
+                         ImGui.TextUnformatted(string.Join(", ", missingClass));
+                     });
+@@ -139,7 +139,7 @@ public abstract class ModuleConfig
+                     error = true;
+                     OcelotUi.Indent(() =>
+                     {
+-                        OcelotUi.Error("The following plugins are conflicting with this module:");
++                        OcelotUi.Error(Ocelot.I18N.T("ui.the_following_plugins_are_conflicting_with_this_module"));
+                         ImGui.SameLine();
+                         ImGui.TextUnformatted(string.Join(", ", conflictingClass));
+                     });
+@@ -170,7 +170,7 @@ public abstract class ModuleConfig
+             {
+                 OcelotUi.Indent(() =>
+                 {
+-                    OcelotUi.Error("Some options are hidden due to missing plugins:");
++                    OcelotUi.Error(Ocelot.I18N.T("ui.some_options_are_hidden_due_to_missing_plugins"));
+                     ImGui.SameLine();
+                     ImGui.TextUnformatted(string.Join(", ", missingAttrs));
+                 });
+@@ -195,7 +195,7 @@ public abstract class ModuleConfig
+             {
+                 OcelotUi.Indent(() =>
+                 {
+-                    OcelotUi.Error("Some options are hidden due to conflicting plugins: ");
++                    OcelotUi.Error(Ocelot.I18N.T("ui.some_options_are_hidden_due_to_conflicting_plugins"));
+                     ImGui.SameLine();
+                     ImGui.TextUnformatted(string.Join(", ", conflictingAttrs));
+                 });

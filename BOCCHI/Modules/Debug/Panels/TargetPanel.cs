@@ -9,7 +9,7 @@ public class TargetPanel : Panel
 {
     public override string GetName()
     {
-        return "Target";
+        return Ocelot.I18N.T("ui.target");
     }
 
     public override unsafe void Render(DebugModule module)
@@ -19,7 +19,7 @@ public class TargetPanel : Panel
             var target = Svc.Targets.Target;
             if (target == null)
             {
-                ImGui.TextUnformatted("No target selected.");
+                ImGui.TextUnformatted(Ocelot.I18N.T("ui.no_target_selected"));
                 return;
             }
 
@@ -28,7 +28,7 @@ public class TargetPanel : Panel
 
             if (obj == null)
             {
-                ImGui.TextUnformatted("Target is not a native GameObject.");
+                ImGui.TextUnformatted(Ocelot.I18N.T("ui.target_is_not_a_native_gameobject"));
                 return;
             }
 
@@ -36,49 +36,49 @@ public class TargetPanel : Panel
             {
                 OcelotUi.Title($"{label}:");
                 ImGui.SameLine();
-                ImGui.TextUnformatted(value?.ToString() ?? "null");
+                ImGui.TextUnformatted(value?.ToString() ?? Ocelot.I18N.T("ui.null"));
             }
 
-            Draw("Name", obj->NameString);
-            Draw("EventState", obj->EventState);
-            Draw("EntityId", obj->EntityId);
-            Draw("LayoutId", obj->LayoutId);
-            Draw("BaseId", obj->BaseId);
-            Draw("OwnerId", obj->OwnerId);
-            Draw("ObjectIndex", obj->ObjectIndex);
-            Draw("ObjectKind", obj->ObjectKind);
-            Draw("SubKind", obj->SubKind);
-            Draw("Sex", obj->Sex);
-            Draw("YalmDistX", obj->YalmDistanceFromPlayerX);
-            Draw("TargetStatus", obj->TargetStatus);
-            Draw("YalmDistZ", obj->YalmDistanceFromPlayerZ);
-            Draw("TargetableStatus", obj->TargetableStatus);
-            Draw("Position", obj->Position);
-            Draw("Rotation", obj->Rotation);
-            Draw("Scale", obj->Scale);
-            Draw("Height", obj->Height);
-            Draw("VfxScale", obj->VfxScale);
-            Draw("HitboxRadius", obj->HitboxRadius);
-            Draw("DrawOffset", obj->DrawOffset);
-            Draw("EventId", obj->EventId);
-            Draw("FateId", obj->FateId);
-            Draw("NamePlateIconId", obj->NamePlateIconId);
-            Draw("RenderFlags", obj->RenderFlags);
+            Draw(Ocelot.I18N.T("ui.name_2"), obj->NameString);
+            Draw(Ocelot.I18N.T("ui.eventstate"), obj->EventState);
+            Draw(Ocelot.I18N.T("ui.entityid"), obj->EntityId);
+            Draw(Ocelot.I18N.T("ui.layoutid"), obj->LayoutId);
+            Draw(Ocelot.I18N.T("ui.baseid"), obj->BaseId);
+            Draw(Ocelot.I18N.T("ui.ownerid"), obj->OwnerId);
+            Draw(Ocelot.I18N.T("ui.objectindex"), obj->ObjectIndex);
+            Draw(Ocelot.I18N.T("ui.objectkind"), obj->ObjectKind);
+            Draw(Ocelot.I18N.T("ui.subkind"), obj->SubKind);
+            Draw(Ocelot.I18N.T("ui.sex"), obj->Sex);
+            Draw(Ocelot.I18N.T("ui.yalmdistx"), obj->YalmDistanceFromPlayerX);
+            Draw(Ocelot.I18N.T("ui.targetstatus"), obj->TargetStatus);
+            Draw(Ocelot.I18N.T("ui.yalmdistz"), obj->YalmDistanceFromPlayerZ);
+            Draw(Ocelot.I18N.T("ui.targetablestatus"), obj->TargetableStatus);
+            Draw(Ocelot.I18N.T("ui.position"), obj->Position);
+            Draw(Ocelot.I18N.T("ui.rotation"), obj->Rotation);
+            Draw(Ocelot.I18N.T("ui.scale"), obj->Scale);
+            Draw(Ocelot.I18N.T("ui.height"), obj->Height);
+            Draw(Ocelot.I18N.T("ui.vfxscale"), obj->VfxScale);
+            Draw(Ocelot.I18N.T("ui.hitboxradius"), obj->HitboxRadius);
+            Draw(Ocelot.I18N.T("ui.drawoffset"), obj->DrawOffset);
+            Draw(Ocelot.I18N.T("ui.eventid"), obj->EventId);
+            Draw(Ocelot.I18N.T("ui.fateid"), obj->FateId);
+            Draw(Ocelot.I18N.T("ui.nameplateiconid"), obj->NamePlateIconId);
+            Draw(Ocelot.I18N.T("ui.renderflags"), obj->RenderFlags);
 
             // Pointers and advanced types
-            Draw("DrawObject", (ulong)obj->DrawObject);
-            Draw("SharedGroupLayoutInstance", (ulong)obj->SharedGroupLayoutInstance);
-            Draw("LuaActor", (ulong)obj->LuaActor);
-            Draw("EventHandler", (ulong)obj->EventHandler);
+            Draw(Ocelot.I18N.T("ui.drawobject"), (ulong)obj->DrawObject);
+            Draw(Ocelot.I18N.T("ui.sharedgrouplayoutinstance"), (ulong)obj->SharedGroupLayoutInstance);
+            Draw(Ocelot.I18N.T("ui.luaactor"), (ulong)obj->LuaActor);
+            Draw(Ocelot.I18N.T("ui.eventhandler"), (ulong)obj->EventHandler);
 
             // Virtual methods (callable via vtable)
-            Draw("IsTargetable()", obj->GetIsTargetable());
-            Draw("Radius", obj->GetRadius());
-            Draw("Height (Virtual)", obj->GetHeight());
-            Draw("Sex (Virtual)", obj->GetSex());
-            Draw("IsDead()", obj->IsDead());
-            Draw("IsNotMounted()", obj->IsNotMounted());
-            Draw("IsCharacter()", obj->IsCharacter());
+            Draw(Ocelot.I18N.T("ui.istargetable"), obj->GetIsTargetable());
+            Draw(Ocelot.I18N.T("ui.radius_3"), obj->GetRadius());
+            Draw(Ocelot.I18N.T("ui.height_virtual"), obj->GetHeight());
+            Draw(Ocelot.I18N.T("ui.sex_virtual"), obj->GetSex());
+            Draw(Ocelot.I18N.T("ui.isdead"), obj->IsDead());
+            Draw(Ocelot.I18N.T("ui.isnotmounted"), obj->IsNotMounted());
+            Draw(Ocelot.I18N.T("ui.ischaracter"), obj->IsCharacter());
         });
     }
 

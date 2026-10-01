@@ -1,0 +1,31 @@
+{
+  "modules": {
+    "buff": {
+      "config": {
+        "title": "增益效果設定",
+        "apply_romeos_ballad": {
+          "label": "使用愛之歌",
+          "tooltip": "使用輔助職業吟遊詩人的增益效果「愛之歌」"
+        },
+        "apply_enduring_fortitude": {
+          "label": "使用祈禱",
+          "tooltip": "使用輔助職業騎士的增益效果「祈禱」"
+        },
+        "apply_fleetfooted": {
+          "label": "使用架招",
+          "tooltip": "使用輔助職業武僧的增益效果「架招」"
+        },
+        "reapply_threshold": {
+          "label": "重新施放門檻（分鐘）",
+          "tooltip": "自動執行時，若任一增益效果的剩餘時間低於此分鐘數，就重新施放所有增益效果。"
+        }
+      },
+      "panel": {
+        "title": "增益效果",
+        "button": {
+          "tooltip": "依序切換至已啟用的輔助職業，施放增益技能，再切回原本的輔助職業。"
+        }
+      }
+    }
+  }
+}

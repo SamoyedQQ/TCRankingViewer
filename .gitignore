@@ -2,4 +2,6 @@
 *.user
 .env
 node_modules/
+tools/**/bin/
+tools/**/obj/
 plugins

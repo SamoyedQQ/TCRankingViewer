@@ -1,0 +1,49 @@
+{
+  "modules": {
+    "forked_tower": {
+      "config": {
+        "title": "兩歧塔設定",
+        "draw_potential_trap_positions": {
+          "label": "顯示隱藏陷阱位置",
+          "tooltip": "啟用範圍內陷阱生成位置的顯示功能"
+        },
+        "draw_simple_mode": {
+          "label": "簡易繪製模式",
+          "tooltip": "以輪廓線方式顯示陷阱位置"
+        },
+        "draw_outline_for_complex_mode": {
+          "label": "在完整繪製模式中顯示輪廓",
+          "tooltip": "在完整繪製模式中加上輪廓，讓陷阱隔著牆壁也能看見。"
+        },
+        "trap_draw_range": {
+          "label": "陷阱顯示範圍",
+          "tooltip": "顯示玩家周圍可能存在陷阱的位置，範圍以星碼為單位。"
+        },
+        "trap_draw_color": {
+          "label": "一般陷阱顏色",
+          "tooltip": "用於顯示一般陷阱標記的顏色"
+        },
+        "big_trap_draw_color": {
+          "label": "大型陷阱顏色",
+          "tooltip": "用於顯示大型或更危險陷阱標記的顏色"
+        },
+        "draw_small_trap_range": {
+          "label": "顯示小型陷阱爆炸範圍",
+          "tooltip": "僅對已發現的陷阱生效（範圍仍在最終確定中）"
+        },
+        "draw_big_trap_range": {
+          "label": "顯示大型陷阱爆炸範圍",
+          "tooltip": "僅對已發現的陷阱生效（範圍仍在最終確定中）"
+        },
+        "stop_rendering_complete_groups": {
+          "label": "隱藏已完整探查的陷阱群",
+          "tooltip": "整組陷阱的位置都確認後，停止繪製該組標記。此功能仍在開發中。"
+        },
+        "ignore_draw_range": {
+          "label": "忽略顯示範圍",
+          "tooltip": "顯示所有已知陷阱位置，不受距離限制。"
+        }
+      }
+    }
+  }
+}

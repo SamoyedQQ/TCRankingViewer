@@ -14,6 +14,6 @@ public class MountProvider : ExcelSheetItemProvider<ExcelMount>
 
     public override string GetLabel(ExcelMount item)
     {
-        return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(item.Singular.ToString());
+        return Localization.GameName("Mount", item.RowId, CultureInfo.CurrentCulture.TextInfo.ToTitleCase(item.Singular.ToString()));
     }
 }

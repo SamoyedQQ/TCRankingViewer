@@ -16,12 +16,12 @@ public class VnavmeshPanel : Panel
     {
         if (module.TryGetIPCSubscriber<VNavmesh>(out var vnav) && vnav!.IsReady())
         {
-            OcelotUi.Title("Vnav state:");
+            OcelotUi.Title(Ocelot.I18N.T("ui.vnav_state"));
             ImGui.SameLine();
-            ImGui.TextUnformatted(vnav.IsRunning() ? "Running" : "Pending");
+            ImGui.TextUnformatted(vnav.IsRunning() ? Ocelot.I18N.T("ui.running") : Ocelot.I18N.T("ui.pending"));
 
 
-            if (ImGui.Button("Test vnav thingy"))
+            if (ImGui.Button(Ocelot.I18N.T("ui.test_vnav_thingy")))
             {
                 vnav.FollowPath([new Vector3(815.2f, 72.5f, -705.15f)], false);
             }

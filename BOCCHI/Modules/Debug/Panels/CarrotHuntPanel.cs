@@ -56,17 +56,17 @@ public class CarrotHuntPanel : Panel
 
     public override string GetName()
     {
-        return "Carrot Hunt Helper";
+        return Ocelot.I18N.T("ui.carrot_hunt_helper");
     }
 
     public override unsafe void Render(DebugModule module)
     {
         var vnav = module.GetIPCSubscriber<VNavmesh>();
-        OcelotUi.LabelledValue("Carrots", CarrotData.Data.Count); // 25
+        OcelotUi.LabelledValue(Ocelot.I18N.T("ui.carrots"), CarrotData.Data.Count); // 25
 
         OcelotUi.Indent(() =>
         {
-            if (ImGui.Button("Test carrot usage chain"))
+            if (ImGui.Button(Ocelot.I18N.T("ui.test_carrot_usage_chain")))
             {
                 Plugin.Chain.Submit(() => Chain.Create()
                     .ConditionalThen(_ => Player.Mounted, _ => Actions.Unmount.Cast())
@@ -111,7 +111,7 @@ public class CarrotHuntPanel : Panel
 
             if (!HasRun)
             {
-                if (ImGui.Button("Run"))
+                if (ImGui.Button(Ocelot.I18N.T("ui.run")))
                 {
                     ShouldRun = true;
                 }
@@ -121,9 +121,9 @@ public class CarrotHuntPanel : Panel
 
             var Completion = (float)Progress / (float)MaxProgress * 100;
 
-            OcelotUi.LabelledValue("Progress: ", $"{Completion:f2}%");
-            OcelotUi.Indent(() => OcelotUi.LabelledValue("Calculations: ", $"{Progress}/{MaxProgress}"));
-            OcelotUi.LabelledValue("Elapsed: ", stopwatch.Elapsed.ToString("mm\\:ss"));
+            OcelotUi.LabelledValue(Ocelot.I18N.T("ui.progress"), $"{Completion:f2}%");
+            OcelotUi.Indent(() => OcelotUi.LabelledValue(Ocelot.I18N.T("ui.calculations"), $"{Progress}/{MaxProgress}"));
+            OcelotUi.LabelledValue(Ocelot.I18N.T("ui.elapsed"), stopwatch.Elapsed.ToString("mm\\:ss"));
         });
     }
 

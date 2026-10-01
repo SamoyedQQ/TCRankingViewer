@@ -93,9 +93,9 @@ public class Treasure(IGameObject obj)
     {
         return GetTreasureType() switch
         {
-            TreasureType.Bronze => "Bronze Treasure Coffer",
-            TreasureType.Silver => "Silver Treasure Coffer",
-            _ => "Unknown Treasure Coffer",
+            TreasureType.Bronze => Ocelot.I18N.T("ui.bronze_treasure_coffer"),
+            TreasureType.Silver => Ocelot.I18N.T("ui.silver_treasure_coffer"),
+            _ => Ocelot.I18N.T("ui.unknown_treasure_coffer"),
         };
     }
 }
