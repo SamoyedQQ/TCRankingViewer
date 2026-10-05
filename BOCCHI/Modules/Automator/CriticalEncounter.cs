@@ -175,6 +175,10 @@ public class CriticalEncounter : Activity
         return Player.DistanceTo(GetPosition()) <= radius;
     }
 
+    private const float EDGE_MARGIN_MIN = 1f;
+
+    private const float EDGE_MARGIN_MAX = 2.5f;
+
     // Pick a spot near the edge of the zone, preferably next to other players waiting there, so we blend in with the crowd.
     private Vector3? GetEdgeDestination()
     {
@@ -182,49 +186,42 @@ public class CriticalEncounter : Activity
         var radius = data.Radius ?? GetRadius();
         module.Debug($"Encounter radius: {radius:F1} (marker: {Encounter.MapMarker.Radius:F1}, unknown4: {Encounter.Unknown4:F1})");
 
-        var minEdge = radius * 0.7f;
-        var maxEdge = radius * 0.9f;
+        // Stand just inside the boundary: 1-2.5 yalms in from the edge, but never deeper than 80% of the radius on small zones
+        var outerEdge = MathF.Max(radius - EDGE_MARGIN_MIN, radius * 0.85f);
+        var innerEdge = MathF.Min(outerEdge, MathF.Max(radius - EDGE_MARGIN_MAX, radius * 0.8f));
+        var distanceFromCenter = innerEdge + (float)Random.Shared.NextDouble() * (outerEdge - innerEdge);
 
         var players = Svc.Objects
             .Where(o => o.ObjectKind == ObjectKind.Player && o.Address != Player.Object.Address)
-            .Where(o => Vector3.Distance(o.Position, center) <= radius)
+            .Where(o => Distance2D(o.Position, center) <= radius)
             .ToList();
 
-        var edgePlayers = players.Where(p => Distance2D(p.Position, center) >= radius * 0.6f).ToList();
-        var candidates = edgePlayers.Count > 0 ? edgePlayers : players;
+        var edgePlayers = players.Where(p => Distance2D(p.Position, center) >= radius * 0.75f).ToList();
 
-        Vector3 target;
-        if (candidates.Count > 0)
+        float angle;
+        float height;
+        if (edgePlayers.Count > 0)
         {
-            // Stand beside one of the few players closest to our approach, rather than crossing the whole zone
-            var anchor = candidates
+            // Stand next to one of the few players at the edge closest to our approach, rather than crossing the whole zone
+            var anchor = edgePlayers
                 .OrderBy(p => Player.DistanceTo(p.Position))
                 .Take(3)
-                .ElementAt(Random.Shared.Next(Math.Min(3, candidates.Count)))
+                .ElementAt(Random.Shared.Next(Math.Min(3, edgePlayers.Count)))
                 .Position;
 
-            var angle = (float)(Random.Shared.NextDouble() * MathF.Tau);
-            var offset = 1.5f + (float)(Random.Shared.NextDouble() * 2f);
-            target = new Vector3(anchor.X + MathF.Cos(angle) * offset, anchor.Y, anchor.Z + MathF.Sin(angle) * offset);
+            // Shift sideways along the edge by 1.5-3 yalms so we don't stand inside them
+            var sideways = (1.5f + (float)Random.Shared.NextDouble() * 1.5f) * (Random.Shared.Next(2) == 0 ? -1f : 1f);
+            angle = MathF.Atan2(anchor.Z - center.Z, anchor.X - center.X) + sideways / distanceFromCenter;
+            height = anchor.Y;
         }
         else
         {
-            // Nobody here yet: stop at the edge on the side we are approaching from
-            var approachAngle = MathF.Atan2(Player.Position.Z - center.Z, Player.Position.X - center.X);
-            var angle = approachAngle + (float)((Random.Shared.NextDouble() - 0.5) * 0.6);
-            target = new Vector3(center.X + MathF.Cos(angle) * maxEdge, center.Y, center.Z + MathF.Sin(angle) * maxEdge);
+            // Nobody at the edge yet: stop at the edge on the side we are approaching from
+            angle = MathF.Atan2(Player.Position.Z - center.Z, Player.Position.X - center.X) + (float)((Random.Shared.NextDouble() - 0.5) * 0.6);
+            height = Player.Position.Y;
         }
 
-        // Keep the point within the edge band so we stay inside the zone but away from the middle
-        var fromCenter = new Vector2(target.X - center.X, target.Z - center.Z);
-        var length = fromCenter.Length();
-        if (length > 0.01f)
-        {
-            var clamped = Math.Clamp(length, minEdge, maxEdge);
-            fromCenter *= clamped / length;
-            target = new Vector3(center.X + fromCenter.X, target.Y, center.Z + fromCenter.Y);
-        }
-
+        var target = new Vector3(center.X + MathF.Cos(angle) * distanceFromCenter, height, center.Z + MathF.Sin(angle) * distanceFromCenter);
         target = vnav.FindPointOnFloor(target, false, 0.5f) ?? target;
 
         module.Debug($"Pathfinding to edge point: {target} ({Distance2D(target, center):F1}/{radius:F1} from center, {players.Count} players in zone)");

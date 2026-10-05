@@ -21,13 +21,16 @@ public class FateTracker
 
         foreach (var (id, data) in currentFates)
         {
-            var fate = new Fate(data);
-            if (!Fates.ContainsKey(id))
+            // Keep the existing instance so its progress history survives, just refresh its snapshot
+            if (Fates.TryGetValue(id, out var existing))
             {
-                OnFateSpawned?.Invoke(fate);
+                existing.Refresh(data);
+                continue;
             }
 
+            var fate = new Fate(data);
             Fates[id] = fate;
+            OnFateSpawned?.Invoke(fate);
         }
 
         var despawned = Fates.Keys.Except(currentFates.Keys).ToList();

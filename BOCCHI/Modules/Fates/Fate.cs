@@ -1,4 +1,3 @@
-using System;
 using System.Numerics;
 using BOCCHI.Data;
 using BOCCHI.Enums;
@@ -7,85 +6,49 @@ using Ocelot.Modules;
 
 namespace BOCCHI.Modules.Fates;
 
-public class Fate(IFate fate)
+// Holds a snapshot of the game's fate data instead of the IFate itself.
+// IFate points straight into game memory, which is freed as soon as the fate ends; reading it afterwards
+// (e.g. while drawing the UI) throws an AccessViolationException, which .NET cannot catch and crashes the game.
+public class Fate
 {
-    public readonly EventData Data = EventData.Fates[fate.FateId];
+    public readonly EventData Data;
 
-    public uint Id
-    {
-        get
-        {
-            try
-            {
-                return fate.FateId;
-            }
-            catch (AccessViolationException)
-            {
-                return 0;
-            }
-        }
-    }
+    public uint Id { get; }
 
-    public string Name
+    public string Name { get; private set; } = string.Empty;
+
+    private float gameRadius;
+
+    private Vector3 gamePosition;
+
+    public byte CurrentProgress { get; private set; }
+
+    public readonly EventProgress Progress = new();
+
+    public Fate(IFate fate)
     {
-        get
-        {
-            try
-            {
-                return Localization.GameName("Fate", fate.FateId, fate.Name.ToString());
-            }
-            catch (AccessViolationException)
-            {
-                return Ocelot.I18N.T("ui.unknown_fate");
-            }
-        }
+        Id = fate.FateId;
+        Data = EventData.Fates.TryGetValue(Id, out var data) ? data : new EventData { Id = Id, Type = EventType.Fate };
+        Refresh(fate);
     }
 
     public float Radius
     {
-        get
-        {
-            try
-            {
-                return Data.Radius ?? fate.Radius;
-            }
-            catch (AccessViolationException)
-            {
-                return 0f;
-            }
-        }
+        get => Data.Radius ?? gameRadius;
     }
 
     public Vector3 StartPosition
     {
-        get
-        {
-            try
-            {
-                return Data.StartPosition ?? fate.Position;
-            }
-            catch (AccessViolationException)
-            {
-                return Vector3.Zero;
-            }
-        }
+        get => Data.StartPosition ?? gamePosition;
     }
 
-    public readonly EventProgress Progress = new();
-
-    public byte CurrentProgress
+    // Only call this with a fate taken from the current Svc.Fates, while it is guaranteed to still exist
+    public void Refresh(IFate fate)
     {
-        get
-        {
-            try
-            {
-                return fate.Progress;
-            }
-            catch (AccessViolationException)
-            {
-                return 100;
-            }
-        }
+        Name = Localization.GameName("Fate", Id, fate.Name.ToString());
+        gameRadius = fate.Radius;
+        gamePosition = fate.Position;
+        CurrentProgress = fate.Progress;
     }
 
     public void Update(UpdateContext context)
