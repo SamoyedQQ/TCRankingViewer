@@ -109,7 +109,7 @@ public static class AethernetExtensions
                     Aethernet = Aethernet.Eldergrowth,
                     DataId = 2014667,
                     Position = new Vector3(306.94f, 105.18f, 305.65f),
-                    Destination = new Vector3(-302.3f, 103f, 306f),
+                    Destination = new Vector3(302.3f, 103f, 306f),
                 };
             case Aethernet.Stonemarsh:
                 return new AethernetData

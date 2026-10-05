@@ -47,28 +47,9 @@ public class CriticalEncounter : Activity
 
             if (!finalDestination && IsCloseToZone())
             {
-                // Get all players in the zone
-                var playersInZone = Svc.Objects
-                    .Where(o => o.ObjectKind == ObjectKind.Player)
-                    .Where(o => Vector3.Distance(o.Position, GetPosition()) <= GetRadius())
-                    .ToList();
-
-                if (playersInZone.Count > 4)
+                var destination = GetEdgeDestination();
+                if (destination != null && vnav.PathfindAndMoveTo(destination.Value, false))
                 {
-                    var minX = playersInZone.Min(p => p.Position.X);
-                    var maxX = playersInZone.Max(p => p.Position.X);
-                    var minY = playersInZone.Min(p => p.Position.Z);
-                    var maxY = playersInZone.Max(p => p.Position.Z);
-
-                    // Choose a random point within the bounding box of players
-                    var rand = new Random();
-                    var randX = (float)(minX + rand.NextDouble() * (maxX - minX));
-                    var randY = (float)(minY + rand.NextDouble() * (maxY - minY));
-                    var randomPoint = new Vector3(randX, GetPosition().Y, randY);
-
-                    module.Debug($"Pathfinding to random point: {randomPoint} (MinX: {minX}, MaxX: {maxX}, MinY: {minY}, MaxY: {maxY})");
-
-                    vnav.PathfindAndMoveTo(randomPoint, false);
                     finalDestination = true;
                 }
             }
@@ -158,10 +139,25 @@ public class CriticalEncounter : Activity
         return dec != null && Encounter.DynamicEventId == dec->CurrentEventId;
     }
 
+    private const float FALLBACK_RADIUS = 20f;
+
     protected override float GetRadius()
     {
+        // The map marker radius is what the game draws as the dotted circle around the encounter
+        var markerRadius = Encounter.MapMarker.Radius;
+        if (markerRadius > 5f)
+        {
+            return markerRadius;
+        }
+
         // This is kind of an assumption, but it seems accurate enough for most encounters.
-        return Encounter.Unknown4;
+        var unknownRadius = Encounter.Unknown4;
+        if (unknownRadius > 5f)
+        {
+            return unknownRadius;
+        }
+
+        return FALLBACK_RADIUS;
     }
 
     protected override Vector3 GetPosition()
@@ -177,6 +173,68 @@ public class CriticalEncounter : Activity
     private bool IsCloseToZone(float radius = 50f)
     {
         return Player.DistanceTo(GetPosition()) <= radius;
+    }
+
+    // Pick a spot near the edge of the zone, preferably next to other players waiting there, so we blend in with the crowd.
+    private Vector3? GetEdgeDestination()
+    {
+        var center = GetPosition();
+        var radius = data.Radius ?? GetRadius();
+        module.Debug($"Encounter radius: {radius:F1} (marker: {Encounter.MapMarker.Radius:F1}, unknown4: {Encounter.Unknown4:F1})");
+
+        var minEdge = radius * 0.7f;
+        var maxEdge = radius * 0.9f;
+
+        var players = Svc.Objects
+            .Where(o => o.ObjectKind == ObjectKind.Player && o.Address != Player.Object.Address)
+            .Where(o => Vector3.Distance(o.Position, center) <= radius)
+            .ToList();
+
+        var edgePlayers = players.Where(p => Distance2D(p.Position, center) >= radius * 0.6f).ToList();
+        var candidates = edgePlayers.Count > 0 ? edgePlayers : players;
+
+        Vector3 target;
+        if (candidates.Count > 0)
+        {
+            // Stand beside one of the few players closest to our approach, rather than crossing the whole zone
+            var anchor = candidates
+                .OrderBy(p => Player.DistanceTo(p.Position))
+                .Take(3)
+                .ElementAt(Random.Shared.Next(Math.Min(3, candidates.Count)))
+                .Position;
+
+            var angle = (float)(Random.Shared.NextDouble() * MathF.Tau);
+            var offset = 1.5f + (float)(Random.Shared.NextDouble() * 2f);
+            target = new Vector3(anchor.X + MathF.Cos(angle) * offset, anchor.Y, anchor.Z + MathF.Sin(angle) * offset);
+        }
+        else
+        {
+            // Nobody here yet: stop at the edge on the side we are approaching from
+            var approachAngle = MathF.Atan2(Player.Position.Z - center.Z, Player.Position.X - center.X);
+            var angle = approachAngle + (float)((Random.Shared.NextDouble() - 0.5) * 0.6);
+            target = new Vector3(center.X + MathF.Cos(angle) * maxEdge, center.Y, center.Z + MathF.Sin(angle) * maxEdge);
+        }
+
+        // Keep the point within the edge band so we stay inside the zone but away from the middle
+        var fromCenter = new Vector2(target.X - center.X, target.Z - center.Z);
+        var length = fromCenter.Length();
+        if (length > 0.01f)
+        {
+            var clamped = Math.Clamp(length, minEdge, maxEdge);
+            fromCenter *= clamped / length;
+            target = new Vector3(center.X + fromCenter.X, target.Y, center.Z + fromCenter.Y);
+        }
+
+        target = vnav.FindPointOnFloor(target, false, 0.5f) ?? target;
+
+        module.Debug($"Pathfinding to edge point: {target} ({Distance2D(target, center):F1}/{radius:F1} from center, {players.Count} players in zone)");
+
+        return target;
+    }
+
+    private static float Distance2D(Vector3 a, Vector3 b)
+    {
+        return Vector2.Distance(new Vector2(a.X, a.Z), new Vector2(b.X, b.Z));
     }
 
 

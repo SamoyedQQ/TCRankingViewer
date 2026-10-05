@@ -3,7 +3,9 @@ using BOCCHI.Data;
 using BOCCHI.Modules.Automator;
 using Dalamud.Interface;
 using Dalamud.Bindings.ImGui;
+using ECommons.GameHelpers;
 using Ocelot;
+using Ocelot.Ui;
 using Ocelot.Windows;
 
 namespace BOCCHI.Windows;
@@ -50,6 +52,12 @@ public class MainWindow(Plugin primaryPlugin, Config config) : OcelotMainWindow(
 
     protected override void Render(RenderContext context)
     {
+        if (Player.Available)
+        {
+            OcelotUi.LabelledValue(I18N.T("windows.main.player_position"), Player.Position.ToCoordinateString());
+            OcelotUi.Separator();
+        }
+
         if (!ZoneData.IsInOccultCrescent())
         {
             ImGui.TextUnformatted(I18N.T("generic.label.not_in_zone"));

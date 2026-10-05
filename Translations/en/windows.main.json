@@ -6,7 +6,8 @@
         "toggle_config": "Toggle config window",
         "emergency_stop": "Emergency Stop",
         "toggle_illegal_mode": "Toggle Illegal Mode"
-      }
+      },
+      "player_position": "Player position"
     }
   }
 }

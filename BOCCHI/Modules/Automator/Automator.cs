@@ -7,6 +7,7 @@ using BOCCHI.Modules.Fates;
 using BOCCHI.Modules.StateManager;
 using Dalamud.Plugin.Services;
 using ECommons.DalamudServices;
+using ECommons.GameHelpers;
 using FFXIVClientStructs.FFXIV.Client.Game.InstanceContent;
 using Ocelot.Chain;
 using Ocelot.IPC;
@@ -44,14 +45,16 @@ public class Automator
             if (states.GetState() == State.InCriticalEncounter)
             {
                 var critical = module.GetModule<CriticalEncountersModule>();
-                var encounter = critical.CriticalEncounters.Values.Last(ev => ev.State != DynamicEventState.Inactive);
-                var data = EventData.CriticalEncounters[encounter.DynamicEventId];
-                Activity = new CriticalEncounter(data, lifestream, vnav, module, critical);
 
-                if (Activity != null)
+                // Right after an encounter ends the state can still read InCriticalEncounter for a few frames while every encounter is already inactive
+                var active = critical.CriticalEncounters.Values.Where(ev => ev.State != DynamicEventState.Inactive).ToList();
+                if (active.Count == 0 || !EventData.CriticalEncounters.TryGetValue(active[^1].DynamicEventId, out var data))
                 {
-                    module.Debug($"Resuming running activity: {Activity.GetName()}");
+                    return;
                 }
+
+                Activity = new CriticalEncounter(data, lifestream, vnav, module, critical);
+                module.Debug($"Resuming running activity: {Activity.GetName()}");
 
                 return;
             }
@@ -113,8 +116,16 @@ public class Automator
             return;
         }
 
-        var closest = AethernetData.GetClosestToPlayer();
-        if (closest.DistanceToPlayer() <= 4.5f)
+        // With a custom return position, that is the only place we idle at, otherwise any aethernet shard will do
+        var teleporterConfig = module.PluginConfig.TeleporterConfig;
+        if (teleporterConfig.UseCustomReturnPosition)
+        {
+            if (Player.DistanceTo(teleporterConfig.GetReturnPosition()) <= teleporterConfig.CustomReturnIdleDistance)
+            {
+                return;
+            }
+        }
+        else if (AethernetData.GetClosestToPlayer().DistanceToPlayer() <= 4.5f)
         {
             return;
         }

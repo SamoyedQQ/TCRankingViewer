@@ -23,6 +23,19 @@
           "label": "Approach aetheryte after returning",
           "tooltip": "Walk to the aetheryte after returning to base camp.\n* Only works when returning via the plugin after a FATE or Critical Encounter."
         }
+      },
+      "return_position": {
+        "title": "Return position",
+        "player": "Current player position",
+        "current": "Return position in use",
+        "original": "Original position",
+        "custom": "custom",
+        "default": "original",
+        "record": "Record current position",
+        "reset": "Restore original position",
+        "arrive_distance": "Arrival distance (yalms)",
+        "arrive_distance_tooltip": "Stop walking once within this distance of the custom return position.\nOriginal behaviour stops within 3.8 yalms of the aetheryte.",
+        "help": "After casting Return, BOCCHI walks to this position (requires vnavmesh and \"Approach aetheryte after returning\"). Keep it near the aetheryte (within 15 yalms) so automation can teleport via the aethernet from there."
       }
     }
   }

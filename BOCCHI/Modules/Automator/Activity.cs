@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Threading.Tasks;
 using BOCCHI.Chains;
 using BOCCHI.Data;
 using BOCCHI.Enums;
@@ -75,6 +76,8 @@ public abstract class Activity
         };
     }
 
+    private const int NAVIGATION_ESTIMATE_TIMEOUT_MS = 5000;
+
     private Func<Chain> GetPathfindingChain(StateManagerModule states)
     {
         return () =>
@@ -83,54 +86,56 @@ public abstract class Activity
             var activityShard = GetAethernetData();
 
             var isFate = data.Type == EventType.Fate;
-            var navType = SmartNavigation.Decide(Player.Position, GetPosition(), activityShard);
 
-            module.Debug("Selected navigation type: " + navType);
+            Task<NavigationEstimate>? estimate = null;
+            var estimateStarted = 0L;
+            NavigationType? navType = null;
 
-            var chain = Chain.Create("Illegal:Pathfinding")
-                .ConditionalWait(_ => !isFate && module.Config.ShouldDelayCriticalEncounters, Random.Shared.Next(10000, 15001));
-
-            switch (navType)
+            bool Is(NavigationType type)
             {
-                case NavigationType.Walk:
-                    chain
-                        .Then(new PathfindingChain(vnav, GetPosition(), data))
-                        .ConditionalThen(_ => ShouldMountToPathfindTo(GetPosition()), ChainHelper.MountChain());
-                    break;
-
-                case NavigationType.ReturnWalk:
-                    chain
-                        .Then(ChainHelper.ReturnChain())
-                        .Then(new PathfindingChain(vnav, GetPosition(), data))
-                        .ConditionalThen(_ => ShouldMountToPathfindTo(GetPosition()), ChainHelper.MountChain());
-                    break;
-
-                case NavigationType.ReturnTeleportWalk:
-                    chain
-                        .Then(ChainHelper.ReturnChain(new ReturnChainConfig { ApproachAetheryte = true }))
-                        .Then(ChainHelper.TeleportChain(activityShard.Aethernet))
-                        .Debug("Waiting for lifestream to not be 'busy'")
-                        .Then(new TaskManagerTask(() => !lifestream.IsBusy(), new TaskManagerConfiguration { TimeLimitMS = 30000 }))
-                        .Then(new PathfindingChain(vnav, GetPosition(), data))
-                        .ConditionalThen(_ => ShouldMountToPathfindTo(GetPosition()), ChainHelper.MountChain());
-                    break;
-
-                case NavigationType.WalkTeleportWalk:
-                    chain
-                        .Then(ChainHelper.PathfindToAndWait(playerShard.Position, AethernetData.DISTANCE))
-                        .Then(ChainHelper.TeleportChain(activityShard.Aethernet))
-                        .Debug("Waiting for lifestream to not be 'busy'")
-                        .Then(new TaskManagerTask(() => !lifestream.IsBusy(), new TaskManagerConfiguration { TimeLimitMS = 30000 }))
-                        .Then(new PathfindingChain(vnav, GetPosition(), data))
-                        .ConditionalThen(_ => ShouldMountToPathfindTo(GetPosition()), ChainHelper.MountChain());
-                    break;
+                return navType == type;
             }
 
-            chain
+            return Chain.Create("Illegal:Pathfinding")
+                .ConditionalWait(_ => !isFate && module.Config.ShouldDelayCriticalEncounters, Random.Shared.Next(10000, 15001))
+                .Then(new TaskManagerTask(() =>
+                {
+                    // Measure walking distances along the navmesh, straight lines badly underestimate walks across cliffs and plateaus
+                    if (estimate == null)
+                    {
+                        estimate = SmartNavigation.Estimate(vnav, Player.Position, GetPosition(), activityShard);
+                        estimateStarted = Environment.TickCount64;
+                    }
+
+                    return estimate.IsCompleted || Environment.TickCount64 - estimateStarted > NAVIGATION_ESTIMATE_TIMEOUT_MS;
+                }, new TaskManagerConfiguration { TimeLimitMS = NAVIGATION_ESTIMATE_TIMEOUT_MS + 5000 }))
+                .Then(_ =>
+                {
+                    NavigationEstimate distances;
+                    if (estimate is { IsCompletedSuccessfully: true })
+                    {
+                        distances = estimate.Result;
+                    }
+                    else
+                    {
+                        module.Debug("Navmesh distance estimate unavailable, falling back to straight line distances");
+                        distances = SmartNavigation.EstimateStraightLine(Player.Position, GetPosition(), activityShard);
+                    }
+
+                    navType = SmartNavigation.Decide(distances, activityShard);
+                    module.Debug("Selected navigation type: " + navType);
+                })
+                .ConditionalThen(_ => Is(NavigationType.ReturnWalk), ChainHelper.ReturnChain())
+                .ConditionalThen(_ => Is(NavigationType.ReturnTeleportWalk),
+                    ChainHelper.ReturnChain(new ReturnChainConfig { ApproachAetheryte = true }))
+                .ConditionalThen(_ => Is(NavigationType.WalkTeleportWalk), ChainHelper.PathfindToAndWait(playerShard.Position, AethernetData.DISTANCE))
+                .ConditionalThen(_ => Is(NavigationType.ReturnTeleportWalk) || Is(NavigationType.WalkTeleportWalk), ChainHelper.TeleportChain(activityShard.Aethernet))
+                .ConditionalThen(_ => Is(NavigationType.ReturnTeleportWalk) || Is(NavigationType.WalkTeleportWalk),
+                    new TaskManagerTask(() => !lifestream.IsBusy(), new TaskManagerConfiguration { TimeLimitMS = 30000 }))
+                .Then(new PathfindingChain(vnav, GetPosition(), data))
+                .ConditionalThen(_ => ShouldMountToPathfindTo(GetPosition()), ChainHelper.MountChain())
                 .Then(GetPathfindingWatcher(states))
                 .Then(_ => state = GetPostPathfindingState());
-
-            return chain;
         };
     }
 

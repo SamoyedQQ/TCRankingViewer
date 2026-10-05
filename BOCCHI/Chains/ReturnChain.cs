@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using BOCCHI.ActionHelpers;
@@ -11,6 +12,7 @@ using Dalamud.Game.ClientState.Conditions;
 using ECommons.Automation.NeoTaskManager;
 using ECommons.DalamudServices;
 using ECommons.GameHelpers;
+using ECommons.Throttlers;
 using Ocelot.Chain;
 using Ocelot.Chain.ChainEx;
 using Ocelot.IPC;
@@ -40,15 +42,76 @@ public class ReturnChain(TeleporterModule module, ReturnChainConfig config) : Re
         {
             var vnav = module.GetIPCSubscriber<VNavmesh>();
             var lifestream = module.GetIPCSubscriber<Lifestream>();
-            var position = GetAetherytePosition();
+            var position = GetReturnPosition();
 
-            chain.Then(new PathfindAndMoveToChain(vnav, GetAetherytePosition()));
-            chain.Then(_ => lifestream.GetActiveCustomAetheryte() != 0 && Player.DistanceTo(position) <= AethernetData.DISTANCE);
+            if (IsUsingCustomPosition())
+            {
+                chain.Then(new TaskManagerTask(() => ApproachCustomPosition(vnav, position), new TaskManagerConfiguration { TimeLimitMS = 60000 }));
+            }
+            else
+            {
+                chain.Then(new PathfindAndMoveToChain(vnav, position));
+                chain.Then(_ => lifestream.GetActiveCustomAetheryte() != 0 && Player.DistanceTo(position) <= AethernetData.DISTANCE);
+            }
+
             chain.Then(_ => vnav.Stop());
         }
 
 
         return chain.Then(_ => complete = true);
+    }
+
+    // Within this distance we walk straight at the custom position, the navmesh often leaves out the ground right next to the aetheryte
+    private const float DIRECT_APPROACH_DISTANCE = 8f;
+
+    private Vector3 lastApproachPosition;
+
+    private long lastApproachProgress;
+
+    private bool ApproachCustomPosition(VNavmesh vnav, Vector3 position)
+    {
+        var distance = Player.DistanceTo(position);
+        if (distance <= module.Config.CustomReturnArriveDistance)
+        {
+            vnav.Stop();
+            return true;
+        }
+
+        var now = Environment.TickCount64;
+        if (Vector3.Distance(Player.Position, lastApproachPosition) > 0.3f)
+        {
+            lastApproachPosition = Player.Position;
+            lastApproachProgress = now;
+        }
+
+        var stuck = vnav.IsRunning() && now - lastApproachProgress > 2000;
+        if (stuck)
+        {
+            vnav.Stop();
+        }
+
+        // vnavmesh is still working on it
+        if (!stuck && (vnav.IsRunning() || vnav.IsSimpleMoveInProgress()))
+        {
+            return false;
+        }
+
+        if (!EzThrottler.Throttle("ReturnChain.ApproachCustomPosition", 500))
+        {
+            return false;
+        }
+
+        lastApproachProgress = now;
+        if (distance <= DIRECT_APPROACH_DISTANCE && !stuck)
+        {
+            vnav.MoveTo(new List<Vector3> { position }, false);
+        }
+        else
+        {
+            vnav.PathfindAndMoveTo(position, false);
+        }
+
+        return false;
     }
 
     private Chain ApplyBuffs()
@@ -96,11 +159,21 @@ public class ReturnChain(TeleporterModule module, ReturnChainConfig config) : Re
         throw new Exception("Unable to determine Aetheryte position");
     }
 
+    private bool IsUsingCustomPosition()
+    {
+        return config.UseCustomPosition && module.Config.UseCustomReturnPosition;
+    }
+
+    private Vector3 GetReturnPosition()
+    {
+        return IsUsingCustomPosition() ? module.Config.GetReturnPosition() : GetAetherytePosition();
+    }
+
     private float GetCostToReturn()
     {
         if (ZoneData.StartingLocations.TryGetValue(Svc.ClientState.TerritoryType, out var start))
         {
-            return Vector3.Distance(start, GetAetherytePosition()) + 75f;
+            return Vector3.Distance(start, GetReturnPosition()) + 75f;
         }
 
 
@@ -109,6 +182,6 @@ public class ReturnChain(TeleporterModule module, ReturnChainConfig config) : Re
 
     private float GetCostToWalk()
     {
-        return Player.DistanceTo(GetAetherytePosition());
+        return Player.DistanceTo(GetReturnPosition());
     }
 }
