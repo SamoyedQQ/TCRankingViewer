@@ -144,9 +144,36 @@ public class ReturnChain(TeleporterModule module, ReturnChainConfig config) : Re
         return 5;
     }
 
+    // Casting Return, buffing and walking to a custom position easily takes longer than the default 10 seconds
+    private const int TIMEOUT_MS = 180000;
+
+    public override int GetTimeout()
+    {
+        return TIMEOUT_MS;
+    }
+
     public override TaskManagerConfiguration? Config()
     {
-        return new TaskManagerConfiguration { TimeLimitMS = 60000 };
+        return new TaskManagerConfiguration { TimeLimitMS = TIMEOUT_MS + 5000 };
+    }
+
+    public override Func<Chain> Factory()
+    {
+        var factory = base.Factory();
+
+        return () => factory().OnFinally(() =>
+        {
+            if (complete)
+            {
+                return;
+            }
+
+            // The attempts run in their own queue, which outlives us when we give up. Left alone it keeps walking us to the
+            // return position after whoever submitted this moved on, e.g. turning around once we arrive at a critical encounter.
+            Svc.Log.Debug("ReturnChain gave up, stopping the running attempt");
+            ChainManager.Get($"{nameof(ReturnChain)}##watcher").Abort();
+            module.GetIPCSubscriber<VNavmesh>().Stop();
+        });
     }
 
     private Vector3 GetAetherytePosition()

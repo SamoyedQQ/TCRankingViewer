@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using BOCCHI.Chains;
 using BOCCHI.Data;
@@ -23,7 +24,12 @@ public class Automator
 
     public Activity? Activity { get; private set; } = null;
 
-    private int idleTime = 0;
+    // Time we started idling away from the return position, only counted while that lasts without a break
+    private long idleSince = 0;
+
+    private long lastIdleTick = 0;
+
+    private const int IDLE_RETURN_DELAY_MS = 3000;
 
     public void PostUpdate(AutomatorModule module, IFramework framework)
     {
@@ -130,10 +136,18 @@ public class Automator
             return;
         }
 
-        idleTime += framework.UpdateDelta.Milliseconds;
-        if (idleTime > 3000)
+        // Any frame spent doing something else starts the count over, so a brief hiccup (like the state dropping
+        // to idle for a moment while a critical encounter moves us into the arena) can't trigger a return on its own
+        var now = Environment.TickCount64;
+        if (now - lastIdleTick > 250)
         {
-            idleTime = 0;
+            idleSince = now;
+        }
+
+        lastIdleTick = now;
+        if (now - idleSince > IDLE_RETURN_DELAY_MS)
+        {
+            idleSince = now;
 
             Plugin.Chain.Submit(ChainHelper.ReturnChain(new ReturnChainConfig { ApproachAetheryte = true }));
         }
@@ -193,6 +207,7 @@ public class Automator
     public void Refresh()
     {
         Activity = null;
-        idleTime = 0;
+        idleSince = 0;
+        lastIdleTick = 0;
     }
 }

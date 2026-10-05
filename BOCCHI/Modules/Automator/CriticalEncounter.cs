@@ -257,4 +257,41 @@ public class CriticalEncounter : Activity
     {
         return ActivityState.WaitingToStartCriticalEncounter;
     }
+
+    // The current event id can drop out for a moment, e.g. while the encounter moves us into the arena, so only stop once it stays gone
+    private const int PARTICIPATION_END_GRACE_MS = 3000;
+
+    private long idleSince = 0;
+
+    protected override bool IsParticipationOver(StateManagerModule states)
+    {
+        if (states.GetState() != State.Idle)
+        {
+            idleSince = 0;
+            return false;
+        }
+
+        var now = Environment.TickCount64;
+        if (idleSince == 0)
+        {
+            idleSince = now;
+        }
+
+        return now - idleSince >= PARTICIPATION_END_GRACE_MS;
+    }
+
+    protected override ActivityState GetPostParticipatingState()
+    {
+        idleSince = 0;
+
+        // We left the registration area before it closed, head back in instead of giving up on the encounter
+        if (Encounter.State == DynamicEventState.Register)
+        {
+            module.Debug("Dropped out of the critical encounter registration area, heading back in");
+            finalDestination = false;
+            return ActivityState.Idle;
+        }
+
+        return ActivityState.Done;
+    }
 }

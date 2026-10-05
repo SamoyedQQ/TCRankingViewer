@@ -151,15 +151,15 @@ public abstract class Activity
                 {
                     if (!module.Config.ShouldForceTarget || !EzThrottler.Throttle("Participating.ForceTarget", 500))
                     {
-                        return states.GetState() == State.Idle;
+                        return IsParticipationOver(states);
                     }
 
                     var enemies = GetEnemies();
                     Svc.Targets.Target = module.Config.ShouldForceTargetCentralEnemy ? enemies.Centroid() : enemies.Closest();
 
-                    return states.GetState() == State.Idle;
+                    return IsParticipationOver(states);
                 }, new TaskManagerConfiguration { TimeLimitMS = int.MaxValue }))
-                .Then(_ => state = ActivityState.Done);
+                .Then(_ => state = GetPostParticipatingState());
         };
     }
 
@@ -208,4 +208,14 @@ public abstract class Activity
     public abstract string GetName();
 
     protected abstract ActivityState GetPostPathfindingState();
+
+    protected virtual bool IsParticipationOver(StateManagerModule states)
+    {
+        return states.GetState() == State.Idle;
+    }
+
+    protected virtual ActivityState GetPostParticipatingState()
+    {
+        return ActivityState.Done;
+    }
 }
