@@ -70,7 +70,8 @@ public class FateActivity(EventData data, Lifestream lifestream, VNavmesh vnav, 
 
     protected override float GetRadius()
     {
-        return module.GetModule<FatesModule>().fates[data.Id].Radius;
+        // The fate can already be gone from the tracker for a frame or two while the activity winds down
+        return module.GetModule<FatesModule>().fates.TryGetValue(data.Id, out var tracked) ? tracked.Radius : fate.Radius;
     }
 
     public override bool IsValid()

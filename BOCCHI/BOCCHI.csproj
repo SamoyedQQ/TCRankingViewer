@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Dalamud.NET.Sdk/13.0.0">
     <PropertyGroup>
-        <Version>1.0.1.5</Version>
+        <Version>1.0.1.6</Version>
         <Description>BOCCHI 新月島與尋寶助手（繁體中文）</Description>
         <PackageProjectUrl>https://github.com/OhKannaDuh/OccultCrescentHelper</PackageProjectUrl>
         <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>

@@ -178,7 +178,8 @@ public class Automator
 
         foreach (var fate in source.fates.Values)
         {
-            if (!module.Config.FatesMap[fate.Id])
+            // Fates the plugin has no data for have no toggle, so they are never automated
+            if (!module.Config.FatesMap.TryGetValue(fate.Id, out var enabled) || !enabled)
             {
                 continue;
             }
