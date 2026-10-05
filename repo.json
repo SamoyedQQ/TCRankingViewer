@@ -42,5 +42,32 @@
     "DownloadLinkInstall": "https://github.com/SamoyedQQ/PartyBell/releases/latest/download/PartyBell.zip",
     "DownloadLinkUpdate": "https://github.com/SamoyedQQ/PartyBell/releases/latest/download/PartyBell.zip",
     "DownloadLinkTesting": "https://github.com/SamoyedQQ/PartyBell/releases/latest/download/PartyBell.zip"
+  },
+  {
+    "Author": "Faye",
+    "Name": "BOCCHI 新月島助手",
+    "Punchline": "新月島探索、危命任務、緊急遭遇戰與尋寶助手。",
+    "Description": "提供繁體中文（台灣）介面。\n- 查看危命任務與緊急遭遇戰及其獎勵。\n- 自動規劃路徑、傳送、尋找寶箱與胡蘿蔔。\n- 追蹤經驗值、貨幣及兩歧塔狀態。\n- 可依設定啟用全自動模式。",
+    "InternalName": "BOCCHI",
+    "AssemblyVersion": "1.0.1.3",
+    "RepoUrl": "https://github.com/cycleapple/BOCCHI",
+    "ApplicableVersion": "any",
+    "Tags": [
+      "BOCCHI",
+      "Occult Crescent",
+      "Occult",
+      "Crescent",
+      "Illegal",
+      "Critical Encounter",
+      "Fate",
+      "Faye",
+      "BOCCHER",
+      "OCH"
+    ],
+    "DalamudApiLevel": 13,
+    "IconUrl": "https://raw.githubusercontent.com/OhKannaDuh/OccultCrescentHelper/refs/heads/master/assets/icon.png",
+    "DownloadLinkInstall": "https://github.com/SamoyedQQ/TCRankingViewer/releases/download/bocchi-v1.0.1.3/BOCCHI.zip",
+    "DownloadLinkUpdate": "https://github.com/SamoyedQQ/TCRankingViewer/releases/download/bocchi-v1.0.1.3/BOCCHI.zip",
+    "DownloadLinkTesting": "https://github.com/SamoyedQQ/TCRankingViewer/releases/download/bocchi-v1.0.1.3/BOCCHI.zip"
   }
 ]
