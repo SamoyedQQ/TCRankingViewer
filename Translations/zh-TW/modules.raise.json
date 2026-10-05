@@ -1,0 +1,13 @@
+{
+  "modules": {
+    "raise": {
+      "config": {
+        "title": "復活設定",
+        "auto_accept_raise": {
+          "label": "自動接受復活",
+          "tooltip": "在新月島被其他玩家復活時，約 1 秒後自動按下接受"
+        }
+      }
+    }
+  }
+}

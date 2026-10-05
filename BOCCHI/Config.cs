@@ -12,6 +12,7 @@ using BOCCHI.Modules.ForkedTower;
 using BOCCHI.Modules.MobFarmer;
 using BOCCHI.Modules.Mount;
 using BOCCHI.Modules.Pathfinder;
+using BOCCHI.Modules.Raise;
 using BOCCHI.Modules.StateManager;
 using BOCCHI.Modules.Teleporter;
 using BOCCHI.Modules.Treasure;
@@ -40,6 +41,8 @@ public class Config : IOcelotConfig
     public WindowManagerConfig WindowManagerConfig { get; set; } = new();
 
     public StateManagerConfig StateManagerConfig { get; set; } = new();
+
+    public RaiseConfig RaiseConfig { get; set; } = new();
 
     // Functional
 

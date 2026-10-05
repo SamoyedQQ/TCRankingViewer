@@ -7,6 +7,8 @@ public enum PlayerStatus : uint
 {
     // Generic
     HoofingIt = 1778,
+    Raise = 148,
+    RaiseAlternate = 1140,
 
     // Zone Specific
     DutiesAsAssigned = 4228,

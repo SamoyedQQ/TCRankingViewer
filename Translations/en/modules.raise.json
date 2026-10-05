@@ -1,0 +1,13 @@
+{
+  "modules": {
+    "raise": {
+      "config": {
+        "title": "Raise Config",
+        "auto_accept_raise": {
+          "label": "Auto accept raises",
+          "tooltip": "When someone raises you in the Occult Crescent, accept it automatically after a second"
+        }
+      }
+    }
+  }
+}
