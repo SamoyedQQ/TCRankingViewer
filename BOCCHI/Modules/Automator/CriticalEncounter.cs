@@ -175,9 +175,10 @@ public class CriticalEncounter : Activity
         return Player.DistanceTo(GetPosition()) <= radius;
     }
 
-    private const float EDGE_MARGIN_MIN = 1f;
+    // The registration area turned out a little smaller than the map marker radius, so keep a few yalms of margin
+    private const float EDGE_MARGIN_MIN = 3f;
 
-    private const float EDGE_MARGIN_MAX = 2.5f;
+    private const float EDGE_MARGIN_MAX = 4.5f;
 
     // Pick a spot near the edge of the zone, preferably next to other players waiting there, so we blend in with the crowd.
     private Vector3? GetEdgeDestination()
@@ -186,9 +187,9 @@ public class CriticalEncounter : Activity
         var radius = data.Radius ?? GetRadius();
         module.Debug($"Encounter radius: {radius:F1} (marker: {Encounter.MapMarker.Radius:F1}, unknown4: {Encounter.Unknown4:F1})");
 
-        // Stand just inside the boundary: 1-2.5 yalms in from the edge, but never deeper than 80% of the radius on small zones
-        var outerEdge = MathF.Max(radius - EDGE_MARGIN_MIN, radius * 0.85f);
-        var innerEdge = MathF.Min(outerEdge, MathF.Max(radius - EDGE_MARGIN_MAX, radius * 0.8f));
+        // Stand just inside the boundary: 3-4.5 yalms in from the edge, but on small zones stay between 70% and 75% of the radius
+        var outerEdge = MathF.Max(radius - EDGE_MARGIN_MIN, radius * 0.75f);
+        var innerEdge = MathF.Min(outerEdge, MathF.Max(radius - EDGE_MARGIN_MAX, radius * 0.7f));
         var distanceFromCenter = innerEdge + (float)Random.Shared.NextDouble() * (outerEdge - innerEdge);
 
         var players = Svc.Objects
